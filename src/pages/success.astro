@@ -106,12 +106,19 @@
         <h1>You're all set.</h1>
         <p class="sub">Your Secure Camera Setup Guide is ready to download. Follow it start to finish — it takes about 30 minutes per camera.</p>
 
-        <a href="/api/download" class="download-btn">
+        <a id="download-link" href="#" class="download-btn" style="display:none;">
             Download Your Guide (PDF)
         </a>
 
-        <p class="note">
-            Check your email for a receipt from Paddle. Save this page if you need to re-download later.
+        <div id="no-token-msg" style="display:none;">
+            <p class="sub" style="margin-bottom:0;">
+                Check your email — we sent a download link to the address used at checkout.<br>
+                <span style="font-size:13px;color:#A8A29E;">If you don't see it, check spam or contact inquiry@salishsecurity.ai</span>
+            </p>
+        </div>
+
+        <p class="note" id="download-note" style="display:none;">
+            Check your email for a receipt from Paddle. A backup download link is also in your email.
         </p>
 
         <hr class="divider">
@@ -121,5 +128,24 @@
             Check out the <a href="https://salishsecurity.ai">AI Security Policy Template Pack</a> — built for IT and security leaders at companies adopting AI.
         </p>
     </div>
+
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var token = params.get('token');
+            var expires = params.get('expires');
+            var downloadLink = document.getElementById('download-link');
+            var noTokenMsg = document.getElementById('no-token-msg');
+            var downloadNote = document.getElementById('download-note');
+
+            if (token && expires) {
+                downloadLink.href = '/api/download?token=' + encodeURIComponent(token) + '&expires=' + encodeURIComponent(expires);
+                downloadLink.style.display = 'inline-flex';
+                downloadNote.style.display = 'block';
+            } else {
+                noTokenMsg.style.display = 'block';
+            }
+        })();
+    </script>
 </body>
 </html>

@@ -630,6 +630,11 @@
     // Initialize Paddle — replace token and priceId with real values from Paddle dashboard
     Paddle.Initialize({
         token: 'PADDLE_CLIENT_TOKEN_PLACEHOLDER',
+        eventCallback: function(event) {
+            if (event.name === 'checkout.completed') {
+                handleCheckoutComplete(event.data);
+            }
+        },
     });
 
     document.querySelectorAll('.paddle-buy').forEach(function(btn) {
@@ -637,12 +642,35 @@
             e.preventDefault();
             Paddle.Checkout.open({
                 items: [{ priceId: 'PADDLE_PRICE_ID_PLACEHOLDER', quantity: 1 }],
-                settings: {
-                    successUrl: window.location.origin + '/success',
-                },
             });
         });
     });
+
+    // After successful checkout, get a signed download token and redirect
+    async function handleCheckoutComplete(data) {
+        var transactionId = data && data.transaction_id;
+        if (!transactionId) {
+            // Fallback: redirect without token
+            window.location.href = '/success';
+            return;
+        }
+        try {
+            var res = await fetch('/api/create-download-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transactionId: transactionId }),
+            });
+            var result = await res.json();
+            if (result.ok && result.token && result.expires) {
+                window.location.href = '/success?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+            } else {
+                window.location.href = '/success';
+            }
+        } catch (err) {
+            console.error('Token creation failed:', err);
+            window.location.href = '/success';
+        }
+    }
 
     // FAQ Accordion
     document.querySelectorAll('.faq-q').forEach(function(q) {
