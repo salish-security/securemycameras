@@ -5,16 +5,19 @@ An Astro site on Cloudflare Workers for **securemycameras.com**.
 Sells the **Secure Camera Setup Guide** — a 22-page PDF for non-technical homeowners. One-time purchase at **$19**.
 
 ## Stack
-- **Framework:** Astro 5 with `@astrojs/cloudflare` adapter (server output)
+- **Framework:** Astro 5 (static output) + standalone Cloudflare Worker (`src/worker.ts`)
 - **Interactive:** React (quiz component only, Astro island via `client:load`)
 - **Styling:** Tailwind CSS (new pages) + inline CSS (landing page)
-- **Hosting:** Cloudflare Workers
+- **Hosting:** Cloudflare Workers + Assets (NOT Pages — Pages is deprecated)
 - **Config:** `wrangler.toml`, `astro.config.mjs`
 - **Checkout:** Paddle (overlay checkout via `Paddle.Checkout.open()`)
 - **Email:** Kit (ConvertKit) — quiz email gate
 - **File delivery:** R2 bucket `securemycameras-files`
-- **Deploy:** GitHub Actions → `wrangler deploy` on push to main
+- **Deploy:** GitHub Actions → `astro build && wrangler deploy` on push to main
 - **Contact:** inquiry@salishsecurity.ai
+
+## Architecture
+Astro builds static HTML/JS into `./dist`. The Worker (`src/worker.ts`) handles API routes (`/api/subscribe`, `/api/paddle-webhook`, `/api/download`) and falls through to `env.ASSETS.fetch(request)` for static assets. This matches the salish-ai-security-lab pattern.
 
 ## Design system (landing page)
 Light warm stone theme — different from salishsecurity.ai's dark theme.
@@ -45,12 +48,12 @@ Background: `#0C0F14`. Fonts: JetBrains Mono + Outfit.
 | `/legal/privacy` | `src/pages/legal/privacy.astro` | Privacy policy |
 | `/legal/terms` | `src/pages/legal/terms.astro` | Terms of service |
 
-## API Routes
-| Route | File | Purpose |
-|---|---|---|
-| `POST /api/subscribe` | `src/pages/api/subscribe.ts` | Quiz email → ConvertKit |
-| `POST /api/paddle-webhook` | `src/pages/api/paddle-webhook.ts` | Paddle purchase → ConvertKit tag |
-| `GET /api/download` | `src/pages/api/download.ts` | Serve PDF from R2 |
+## API Routes (handled by `src/worker.ts`)
+| Route | Purpose |
+|---|---|
+| `POST /api/subscribe` | Quiz email → ConvertKit |
+| `POST /api/paddle-webhook` | Paddle purchase → ConvertKit tag |
+| `GET /api/download` | Serve PDF from R2 |
 
 ## Secrets (via `wrangler secret put`)
 - `PADDLE_WEBHOOK_SECRET`

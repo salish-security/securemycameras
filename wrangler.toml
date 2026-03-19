@@ -1,7 +1,10 @@
 name = "securemycameras"
+main = "src/worker.ts"
 compatibility_date = "2026-03-18"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "./dist"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
 
 [[r2_buckets]]
 binding = "PRIVATE_FILES"
