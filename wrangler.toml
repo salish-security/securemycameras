@@ -1,9 +1,9 @@
 name = "securemycameras"
-main = "./dist/_worker.js"
+main = "./dist/_worker.js/index.js"
 compatibility_date = "2026-03-18"
 
 [assets]
-directory = "./dist/client"
+directory = "./dist"
 binding = "ASSETS"
 
 [[r2_buckets]]
