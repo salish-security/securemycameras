@@ -5,6 +5,9 @@ import tailwind from "@astrojs/tailwind";
 
 export default defineConfig({
   output: "server",
+  image: {
+    service: { entrypoint: "astro/assets/services/noop" },
+  },
   adapter: cloudflare({
     platformProxy: {
       enabled: true,
