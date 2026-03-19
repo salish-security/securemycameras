@@ -1,0 +1,125 @@
+---
+// Post-purchase confirmation page
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You — Your Guide is Ready | securemycameras.com</title>
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFAF9;
+            color: #1C1917;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: white;
+            border: 1px solid #E7E5E4;
+            border-radius: 16px;
+            padding: 48px 40px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+        }
+        .check {
+            width: 64px; height: 64px;
+            background: #ECFDF5;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 32px;
+            color: #059669;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        .sub {
+            font-size: 16px;
+            color: #57534E;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #059669;
+            color: white;
+            padding: 16px 36px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+        }
+        .download-btn:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+        .note {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #A8A29E;
+        }
+        .divider {
+            border: none;
+            border-top: 1px solid #E7E5E4;
+            margin: 32px 0;
+        }
+        .cross-sell {
+            font-size: 14px;
+            color: #57534E;
+            line-height: 1.6;
+        }
+        .cross-sell a {
+            color: #DC2626;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .cross-sell a:hover { text-decoration: underline; }
+        @media (max-width: 600px) {
+            .card { padding: 32px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="check">&#10003;</div>
+        <h1>You're all set.</h1>
+        <p class="sub">Your Secure Camera Setup Guide is ready to download. Follow it start to finish — it takes about 30 minutes per camera.</p>
+
+        <a href="/api/download" class="download-btn">
+            Download Your Guide (PDF)
+        </a>
+
+        <p class="note">
+            Check your email for a receipt from Paddle. Save this page if you need to re-download later.
+        </p>
+
+        <hr class="divider">
+
+        <p class="cross-sell">
+            Responsible for AI or cybersecurity policy at your company?<br>
+            Check out the <a href="https://salishsecurity.ai">AI Security Policy Template Pack</a> — built for IT and security leaders at companies adopting AI.
+        </p>
+    </div>
+</body>
+</html>

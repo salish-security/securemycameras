@@ -1,0 +1,15 @@
+name = "securemycameras"
+main = "./dist/_worker.js"
+compatibility_date = "2026-03-18"
+
+[assets]
+directory = "./dist/client"
+binding = "ASSETS"
+
+[[r2_buckets]]
+binding = "PRIVATE_FILES"
+bucket_name = "securemycameras-files"
+
+[vars]
+SUPPORT_EMAIL = "inquiry@salishsecurity.ai"
+PRODUCT_NAME = "Secure Camera Setup Guide"

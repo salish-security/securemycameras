@@ -1,0 +1,659 @@
+---
+// Static landing page — ships zero JavaScript (except Paddle + FAQ accordion)
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Set Up Smart Cameras Without Getting Hacked | Secure My Cameras</title>
+    <meta name="description" content="The step-by-step guide to setting up Ring, Nest, Arlo, Wyze, and other smart cameras securely. Stop hackers from turning your security camera into a vulnerability.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #FAFAF9;
+            --surface: #FFFFFF;
+            --surface-alt: #F5F3F0;
+            --text-primary: #1C1917;
+            --text-secondary: #57534E;
+            --text-muted: #A8A29E;
+            --danger: #DC2626;
+            --danger-bg: #FEF2F2;
+            --danger-border: #FECACA;
+            --warning: #D97706;
+            --warning-bg: #FFFBEB;
+            --success: #059669;
+            --success-bg: #ECFDF5;
+            --accent: #2563EB;
+            --accent-hover: #1D4ED8;
+            --border: #E7E5E4;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+        .announce {
+            background: var(--text-primary);
+            color: white;
+            text-align: center;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+        .announce span { color: #FCA5A5; font-weight: 700; }
+
+        nav {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-icon {
+            width: 28px; height: 28px;
+            background: var(--danger);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 14px;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .nav-quiz-link {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .nav-quiz-link:hover { color: var(--danger); }
+        .nav-cta {
+            background: var(--danger);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .nav-cta:hover { background: #B91C1C; }
+
+        .hero {
+            padding: 72px 0 60px;
+            text-align: center;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 100px;
+            margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: clamp(32px, 5vw, 48px);
+            line-height: 1.15;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+        .hero h1 em {
+            font-style: normal;
+            color: var(--danger);
+        }
+        .hero-sub {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 540px;
+            margin: 0 auto 32px;
+            line-height: 1.6;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--danger);
+            color: white;
+            padding: 16px 36px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: -0.01em;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+        }
+        .cta-btn:hover {
+            background: #B91C1C;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35);
+        }
+        .cta-btn-secondary {
+            background: var(--text-primary);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        }
+        .cta-btn-secondary:hover {
+            background: #292524;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        .cta-price {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        .cta-note {
+            display: block;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .fear { padding: 0 0 60px; }
+        .fear-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            box-shadow: var(--shadow-md);
+        }
+        .fear-card h2 { font-size: 22px; margin-bottom: 20px; font-weight: 700; }
+        .fear-item {
+            display: flex;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .fear-item:last-child { border-bottom: none; }
+        .fear-icon {
+            flex-shrink: 0;
+            width: 36px; height: 36px;
+            background: var(--danger-bg);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .fear-item h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .fear-item p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+        .inside { padding: 60px 0; }
+        .section-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--danger);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .section-heading {
+            font-size: clamp(24px, 4vw, 32px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+        .section-sub {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 36px;
+            max-width: 560px;
+        }
+        .inside-grid { display: grid; gap: 16px; }
+        .inside-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            transition: box-shadow 0.2s;
+        }
+        .inside-item:hover { box-shadow: var(--shadow-md); }
+        .inside-num {
+            flex-shrink: 0;
+            width: 32px; height: 32px;
+            background: var(--surface-alt);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .inside-item h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+        .inside-item p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        .proof { padding: 48px 0; }
+        .proof-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            text-align: center;
+        }
+        .proof-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 24px 16px;
+        }
+        .proof-num {
+            font-family: 'Space Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .proof-label { font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+
+        .for-who { padding: 60px 0; }
+        .for-who-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 36px;
+            box-shadow: var(--shadow-sm);
+        }
+        .for-who-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; }
+        .check-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+        .check-icon {
+            flex-shrink: 0;
+            width: 22px; height: 22px;
+            background: var(--success-bg);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--success);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        .check-item p { font-size: 15px; color: var(--text-secondary); }
+        .check-item p strong { color: var(--text-primary); }
+
+        .final-cta { padding: 60px 0; text-align: center; }
+        .final-cta-card {
+            background: var(--text-primary);
+            color: white;
+            border-radius: 16px;
+            padding: 56px 36px;
+            box-shadow: var(--shadow-xl);
+        }
+        .final-cta-card h2 {
+            font-size: clamp(24px, 4vw, 32px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+        .final-cta-card p {
+            font-size: 16px;
+            color: #A8A29E;
+            margin-bottom: 32px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .final-cta-card .cta-btn { font-size: 18px; padding: 16px 40px; }
+        .final-cta-card .cta-note { color: #78716C; }
+        .price-anchor { margin-bottom: 24px; }
+        .price-anchor .old-price {
+            font-size: 18px;
+            color: #78716C;
+            text-decoration: line-through;
+            margin-right: 8px;
+        }
+        .price-anchor .new-price { font-size: 36px; font-weight: 700; color: white; }
+
+        .faq { padding: 60px 0; }
+        .faq-item { border-bottom: 1px solid var(--border); padding: 20px 0; }
+        .faq-q {
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .faq-q::after {
+            content: '+';
+            font-family: 'Space Mono', monospace;
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .faq-item.open .faq-q::after { content: '\2212'; }
+        .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .faq-item.open .faq-a { max-height: 300px; }
+        .faq-a p { padding-top: 12px; font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
+
+        footer { padding: 40px 0; text-align: center; border-top: 1px solid var(--border); }
+        footer p { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+        footer a { color: var(--text-secondary); }
+
+        @media (max-width: 600px) {
+            .proof-grid { grid-template-columns: 1fr; }
+            .hero { padding: 48px 0 40px; }
+            .fear-card, .for-who-card, .final-cta-card { padding: 24px; }
+            .cta-btn { width: 100%; justify-content: center; font-size: 16px; padding: 16px 24px; }
+            .nav-quiz-link { display: none; }
+            .nav-cta { padding: 8px 14px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ANNOUNCEMENT BAR -->
+<div class="announce">
+    <span>&#9888;</span> Thousands of home cameras are streaming publicly right now. Most owners have no idea.
+</div>
+
+<!-- NAV -->
+<nav>
+    <div class="container">
+        <a href="/" class="logo">
+            <div class="logo-icon">&#128274;</div>
+            securemycameras
+        </a>
+        <div class="nav-links">
+            <a href="/quiz" class="nav-quiz-link">Free Security Quiz</a>
+            <a href="#buy" class="nav-cta">Get the Guide &mdash; $19</a>
+        </div>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">&#9888; Security Alert</div>
+        <h1>Your Security Camera Might Be<br> <em>Your Biggest Vulnerability</em></h1>
+        <p class="hero-sub">The step-by-step guide to setting up Ring, Nest, Arlo, Wyze, and other smart cameras so they actually protect you &mdash; instead of putting your family at risk.</p>
+        <button class="cta-btn paddle-buy" type="button">
+            Get the Secure Setup Guide <span class="cta-price">&mdash; $19</span>
+        </button>
+        <span class="cta-note">Instant PDF download. Follow it once and you're done.</span>
+    </div>
+</section>
+
+<!-- FEAR SECTION -->
+<section class="fear">
+    <div class="container">
+        <div class="fear-card">
+            <h2>This is happening to real families, right now.</h2>
+            <div class="fear-item">
+                <div class="fear-icon">&#128065;</div>
+                <div>
+                    <h3>Live camera feeds broadcast publicly</h3>
+                    <p>Websites aggregate thousands of unsecured camera feeds from homes worldwide. Baby monitors, doorbell cams, backyard cameras &mdash; all streaming because a default password was never changed.</p>
+                </div>
+            </div>
+            <div class="fear-item">
+                <div class="fear-icon">&#128483;</div>
+                <div>
+                    <h3>Strangers talking to children through monitors</h3>
+                    <p>Hackers access two-way audio on baby monitors and speak directly to children. Multiple incidents documented across every major camera brand.</p>
+                </div>
+            </div>
+            <div class="fear-item">
+                <div class="fear-icon">&#128274;</div>
+                <div>
+                    <h3>One leaked password unlocks your whole home</h3>
+                    <p>If you reuse passwords, a data breach anywhere gives attackers your camera login. This is the #1 way Ring and Nest accounts are compromised.</p>
+                </div>
+            </div>
+            <div class="fear-item">
+                <div class="fear-icon">&#128225;</div>
+                <div>
+                    <h3>Your camera can expose your entire network</h3>
+                    <p>An unsecured camera on your home WiFi gives attackers a path to your laptop, phone, and every other device on the network.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- WHAT'S INSIDE -->
+<section class="inside">
+    <div class="container">
+        <div class="section-label">What's inside</div>
+        <h2 class="section-heading">One guide. Start to finish. Do it once.</h2>
+        <p class="section-sub">No scattered YouTube videos. No confusing tech jargon. One printable document that walks you through everything.</p>
+
+        <div class="inside-grid">
+            <div class="inside-item">
+                <div class="inside-num">01</div>
+                <div>
+                    <h3>Why your camera could be a liability</h3>
+                    <p>Real incidents, real attack methods &mdash; explained in plain English so you understand what you're protecting against.</p>
+                </div>
+            </div>
+            <div class="inside-item">
+                <div class="inside-num">02</div>
+                <div>
+                    <h3>Choosing a camera that isn't a security risk</h3>
+                    <p>What to look for, what to avoid, and a brand-by-brand security comparison table (Ring, Nest, Arlo, Wyze, Eufy, Reolink).</p>
+                </div>
+            </div>
+            <div class="inside-item">
+                <div class="inside-num">03</div>
+                <div>
+                    <h3>The 10-step secure setup checklist</h3>
+                    <p>The core of the guide. Follow these steps during setup and your camera is hardened against the most common attacks. 20-30 minutes per camera.</p>
+                </div>
+            </div>
+            <div class="inside-item">
+                <div class="inside-num">04</div>
+                <div>
+                    <h3>Lock down your home WiFi</h3>
+                    <p>Router-specific instructions for TP-Link, Netgear, Eero, Google Wifi, Xfinity, and ASUS. Guest network setup, encryption, and what to disable.</p>
+                </div>
+            </div>
+            <div class="inside-item">
+                <div class="inside-num">05</div>
+                <div>
+                    <h3>What to do if you've been hacked</h3>
+                    <p>Warning signs, immediate response steps, and when to contact authorities. An action plan you hope you never need.</p>
+                </div>
+            </div>
+            <div class="inside-item">
+                <div class="inside-num">06</div>
+                <div>
+                    <h3>Printable cheat sheet &amp; glossary</h3>
+                    <p>A one-page checklist to keep near your router, plus a plain-English glossary of every technical term in the guide.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PROOF BAR -->
+<section class="proof">
+    <div class="container">
+        <div class="proof-grid">
+            <div class="proof-item">
+                <div class="proof-num">10</div>
+                <div class="proof-label">Step-by-step hardening actions</div>
+            </div>
+            <div class="proof-item">
+                <div class="proof-num">6</div>
+                <div class="proof-label">Major camera brands covered</div>
+            </div>
+            <div class="proof-item">
+                <div class="proof-num">30<span style="font-size:18px">min</span></div>
+                <div class="proof-label">Per camera to secure it properly</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOR WHO -->
+<section class="for-who">
+    <div class="container">
+        <div class="for-who-card">
+            <h2>This guide is for you if&hellip;</h2>
+            <div class="check-item">
+                <div class="check-icon">&#10003;</div>
+                <p>You <strong>want a security camera or doorbell</strong> but you're worried about getting hacked</p>
+            </div>
+            <div class="check-item">
+                <div class="check-icon">&#10003;</div>
+                <p>You <strong>already have cameras installed</strong> but never went through a security setup process</p>
+            </div>
+            <div class="check-item">
+                <div class="check-icon">&#10003;</div>
+                <p>You're <strong>not technical</strong> &mdash; you just want clear steps to follow, not a networking course</p>
+            </div>
+            <div class="check-item">
+                <div class="check-icon">&#10003;</div>
+                <p>You saw a <strong>news story about hacked cameras</strong> and want to make sure it doesn't happen to you</p>
+            </div>
+            <div class="check-item">
+                <div class="check-icon">&#10003;</div>
+                <p>You have <strong>kids at home</strong> and the thought of a compromised baby monitor keeps you up at night</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta" id="buy">
+    <div class="container">
+        <div class="final-cta-card">
+            <div class="section-label" style="color: #EF4444;">One-time purchase</div>
+            <h2>Protect your cameras in<br>one afternoon.</h2>
+            <p>Follow the guide once. Print the cheat sheet. Run the quarterly check-up. That's it.</p>
+            <div class="price-anchor">
+                <span class="new-price">$19</span>
+            </div>
+            <button class="cta-btn paddle-buy" type="button">
+                Download the Guide Now
+            </button>
+            <span class="cta-note">Instant PDF download. No subscription. No upsells.</span>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+    <div class="container">
+        <div class="section-label">Common Questions</div>
+        <h2 class="section-heading">FAQ</h2>
+
+        <div class="faq-item">
+            <div class="faq-q">Is this guide specific to my camera brand?</div>
+            <div class="faq-a"><p>The guide covers general security steps that apply to all smart cameras, plus brand-specific instructions for Ring, Google Nest, Arlo, Wyze, Eufy, and Reolink &mdash; including where to find 2FA settings in each app. The WiFi section includes router-specific steps for TP-Link, Netgear, Eero, Google Wifi, Xfinity, and ASUS.</p></div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">I'm not technical at all. Will I be able to follow this?</div>
+            <div class="faq-a"><p>Yes. This guide is written for people who know how to install an app and follow step-by-step instructions. Every technical term is explained in plain English, and there's a glossary at the back for quick reference. If you can follow a recipe, you can follow this guide.</p></div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">Can't I just find this information free on YouTube?</div>
+            <div class="faq-a"><p>You can find pieces of it scattered across dozens of videos, forum posts, and blog articles &mdash; some outdated, some overly technical, some contradicting each other. This guide puts everything in one place, in order, with a printable checklist. The value is not the information &mdash; it's having a single start-to-finish workflow you can trust and complete in one sitting.</p></div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">What format is the guide?</div>
+            <div class="faq-a"><p>It's a professionally formatted PDF (approximately 22 pages) designed to be readable on screen or printed. The cheat sheet at the end is specifically designed for printing &mdash; keep it near your router for quarterly check-ups.</p></div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">Who wrote this guide?</div>
+            <div class="faq-a"><p>This guide is published by Salish AI Security Lab, a cybersecurity research lab specializing in application security and threat detection. We build security frameworks used by organizations ranging from mid-market companies to enterprise. This consumer guide applies the same rigorous methodology to home network security.</p></div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">What if my camera brand isn't listed?</div>
+            <div class="faq-a"><p>The 10-step checklist works for any smart camera or video doorbell. The brand-specific sections cover the six most popular brands, but the underlying security principles &mdash; strong passwords, 2FA, firmware updates, network segmentation &mdash; apply universally.</p></div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="container">
+        <p>
+            &copy; 2026 Salish Private Estates LLC. All rights reserved.<br>
+            Published by <a href="https://salishsecurity.ai">Salish AI Security Lab</a><br>
+            <a href="mailto:inquiry@salishsecurity.ai">inquiry@salishsecurity.ai</a> &middot;
+            <a href="/legal/privacy">Privacy</a> &middot;
+            <a href="/legal/terms">Terms</a>
+        </p>
+    </div>
+</footer>
+
+<!-- Paddle Checkout -->
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+    // Initialize Paddle — replace token and priceId with real values from Paddle dashboard
+    Paddle.Initialize({
+        token: 'PADDLE_CLIENT_TOKEN_PLACEHOLDER',
+    });
+
+    document.querySelectorAll('.paddle-buy').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            Paddle.Checkout.open({
+                items: [{ priceId: 'PADDLE_PRICE_ID_PLACEHOLDER', quantity: 1 }],
+                settings: {
+                    successUrl: window.location.origin + '/success',
+                },
+            });
+        });
+    });
+
+    // FAQ Accordion
+    document.querySelectorAll('.faq-q').forEach(function(q) {
+        q.addEventListener('click', function() {
+            var item = q.parentElement;
+            var wasOpen = item.classList.contains('open');
+            document.querySelectorAll('.faq-item').forEach(function(i) { i.classList.remove('open'); });
+            if (!wasOpen) item.classList.add('open');
+        });
+    });
+</script>
+
+</body>
+</html>
