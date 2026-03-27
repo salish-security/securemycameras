@@ -181,8 +181,12 @@ export default function CameraSecurityQuiz() {
   const [email, setEmail] = useState("");
   const [score, setScore] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const gateHeadingRef = useRef<HTMLHeadingElement>(null);
+  const resultsHeadingRef = useRef<HTMLDivElement>(null);
 
   const handleAnswer = (optionIndex: number) => {
     if (animating) return;
@@ -202,15 +206,22 @@ export default function CameraSecurityQuiz() {
         const total = newAnswers.reduce((s, a) => s + a.points, 0);
         setScore(total);
         setPhase("gate");
+        setTimeout(() => gateHeadingRef.current?.focus(), 50);
       }
       setAnimating(false);
     }, 400);
   };
 
   const handleEmailSubmit = async () => {
-    if (!email || !email.includes("@")) return;
+    if (submitting) return;
+    if (!email || !email.includes("@")) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    setSubmitting(true);
     try {
-      await fetch("/api/subscribe", {
+      const res = await fetch("/api/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,17 +231,21 @@ export default function CameraSecurityQuiz() {
           tier: getRiskLevel(score).level,
         }),
       });
+      if (res.ok) {
+        // Fire Meta Pixel Lead event only on successful subscribe
+        if (typeof window !== "undefined" && (window as any).fbq) {
+          (window as any).fbq("track", "Lead");
+        }
+      }
     } catch {
       // Silent fail — don't block the user from seeing results
     }
+    setSubmitting(false);
     setPhase("results");
-    setTimeout(() => setShowResult(true), 300);
+    setTimeout(() => { resultsHeadingRef.current?.focus(); setShowResult(true); }, 300);
   };
 
-  const handleSkip = () => {
-    setPhase("results");
-    setTimeout(() => setShowResult(true), 300);
-  };
+  // Skip removed — email is required to see results
 
   const restart = () => {
     setPhase("intro");
@@ -259,7 +274,6 @@ export default function CameraSecurityQuiz() {
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700&display=swap');
         @keyframes scanDown {
           0% { transform: translateY(0); opacity: 0; }
           10% { opacity: 1; }
@@ -275,6 +289,10 @@ export default function CameraSecurityQuiz() {
           50% { opacity: 0.5; }
         }
         * { box-sizing: border-box; }
+        button:focus-visible {
+          outline: 2px solid #EF4444;
+          outline-offset: 2px;
+        }
       `}</style>
 
       <div ref={containerRef} style={{ width: "100%", maxWidth: 520, position: "relative" }}>
@@ -366,7 +384,12 @@ export default function CameraSecurityQuiz() {
                 </p>
 
                 <button
-                  onClick={() => setPhase("quiz")}
+                  onClick={() => {
+                    setPhase("quiz");
+                    if (typeof window !== "undefined" && (window as any).fbq) {
+                      (window as any).fbq("track", "ViewContent", { content_name: "Camera Security Quiz" });
+                    }
+                  }}
                   style={{
                     background: "#EF4444",
                     color: "white",
@@ -477,7 +500,7 @@ export default function CameraSecurityQuiz() {
                 <div
                   style={{
                     height: "100%",
-                    width: `${((currentQ + 1) / QUESTIONS.length) * 100}%`,
+                    width: `${(currentQ / QUESTIONS.length) * 100}%`,
                     background:
                       "linear-gradient(90deg, #EF4444, #F97316)",
                     transition: "width 0.4s ease",
@@ -530,6 +553,7 @@ export default function CameraSecurityQuiz() {
                       <button
                         key={i}
                         onClick={() => handleAnswer(i)}
+                        disabled={animating}
                         style={{
                           background: "#1A1F2B",
                           border: "1px solid #2D3348",
@@ -548,6 +572,7 @@ export default function CameraSecurityQuiz() {
                         }}
                       >
                         <span
+                          aria-hidden="true"
                           style={{
                             width: 26,
                             height: 26,
@@ -633,16 +658,18 @@ export default function CameraSecurityQuiz() {
                 </div>
 
                 <h2
+                  ref={gateHeadingRef}
+                  tabIndex={-1}
                   style={{
                     fontFamily: "'Outfit', sans-serif",
                     fontSize: 24,
                     fontWeight: 700,
                     marginBottom: 8,
                     color: "#F9FAFB",
+                    outline: "none",
                   }}
                 >
-                  Scan complete. Your risk level:{" "}
-                  <span style={{ color: risk.color }}>{risk.level}</span>
+                  Your Camera Security Score Is Ready
                 </h2>
 
                 <p
@@ -653,9 +680,7 @@ export default function CameraSecurityQuiz() {
                     marginBottom: 28,
                   }}
                 >
-                  Enter your email to see the full breakdown &mdash; which
-                  questions you got wrong, what each one means, and how to fix
-                  it.
+                  Enter your email to see your score and get a personalized action plan.
                 </p>
 
                 <div
@@ -663,23 +688,30 @@ export default function CameraSecurityQuiz() {
                     display: "flex",
                     gap: 10,
                     marginBottom: 12,
+                    flexWrap: "wrap" as const,
                   }}
                 >
                   <input
                     type="email"
+                    id="email-gate"
                     placeholder="you@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
                     onKeyDown={(e) =>
                       e.key === "Enter" && handleEmailSubmit()
                     }
+                    aria-label="Email address"
+                    aria-describedby={emailError ? "email-error" : undefined}
+                    aria-invalid={!!emailError}
+                    autoComplete="email"
                     style={{
                       flex: 1,
+                      minWidth: 0,
                       background: "#0C0F14",
                       border: "1px solid #2D3348",
                       borderRadius: 10,
                       padding: "12px 16px",
-                      fontSize: 15,
+                      fontSize: 16,
                       fontFamily: "'Outfit', sans-serif",
                       color: "#E5E7EB",
                       outline: "none",
@@ -687,8 +719,11 @@ export default function CameraSecurityQuiz() {
                   />
                   <button
                     onClick={handleEmailSubmit}
+                    disabled={submitting}
+                    aria-busy={submitting}
+                    aria-label={submitting ? "Sending, please wait" : "See my security score"}
                     style={{
-                      background: "#EF4444",
+                      background: submitting ? "#9CA3AF" : "#EF4444",
                       color: "white",
                       border: "none",
                       padding: "12px 24px",
@@ -696,28 +731,28 @@ export default function CameraSecurityQuiz() {
                       fontSize: 15,
                       fontWeight: 600,
                       fontFamily: "'Outfit', sans-serif",
-                      cursor: "pointer",
+                      cursor: submitting ? "wait" : "pointer",
                       whiteSpace: "nowrap" as const,
+                      opacity: submitting ? 0.7 : 1,
                     }}
                   >
-                    See Results
+                    {submitting ? "Sending\u2026" : "See My Score \u2192"}
                   </button>
                 </div>
-
-                <button
-                  onClick={handleSkip}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#4B5563",
-                    fontSize: 13,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    cursor: "pointer",
-                    padding: "4px 0",
-                  }}
-                >
-                  Skip &mdash; show results without email &#8594;
-                </button>
+                {emailError && (
+                  <p
+                    id="email-error"
+                    role="alert"
+                    style={{
+                      fontSize: 13,
+                      color: "#EF4444",
+                      marginTop: 6,
+                      fontFamily: "'Outfit', sans-serif",
+                    }}
+                  >
+                    {emailError}
+                  </p>
+                )}
 
                 <p
                   style={{
@@ -727,8 +762,7 @@ export default function CameraSecurityQuiz() {
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
-                  No spam. We'll send you one follow-up with fixes for your
-                  specific risk areas.
+                  We'll also send you 3 free security tips over the next week. Unsubscribe anytime.
                 </p>
               </div>
             </div>
@@ -778,7 +812,10 @@ export default function CameraSecurityQuiz() {
               <div style={{ padding: "32px 28px" }}>
                 {/* Score display */}
                 <div
+                  ref={resultsHeadingRef}
+                  tabIndex={-1}
                   style={{
+                    outline: "none",
                     display: "flex",
                     alignItems: "center",
                     gap: 20,
@@ -969,17 +1006,33 @@ export default function CameraSecurityQuiz() {
                     border: "1px solid #1E2330",
                   }}
                 >
-                  <h3
+                  <div
                     style={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: 18,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 12,
                       fontWeight: 700,
-                      color: "#F9FAFB",
-                      marginBottom: 8,
+                      color: risk.color,
+                      letterSpacing: "0.06em",
+                      marginBottom: 10,
                     }}
                   >
-                    Fix every vulnerability in one afternoon.
-                  </h3>
+                    YOUR RISK LEVEL: {risk.level}
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 15,
+                      color: "#D1D5DB",
+                      marginBottom: 8,
+                      lineHeight: 1.5,
+                      fontFamily: "'Outfit', sans-serif",
+                    }}
+                  >
+                    You have{" "}
+                    <span style={{ color: risk.color, fontWeight: 700 }}>
+                      {answers.filter((a) => a.points === 0).length} open vulnerabilities
+                    </span>{" "}
+                    in your camera setup.
+                  </p>
                   <p
                     style={{
                       fontSize: 14,
@@ -989,8 +1042,8 @@ export default function CameraSecurityQuiz() {
                       fontFamily: "'Outfit', sans-serif",
                     }}
                   >
-                    The Secure Camera Setup Guide walks you through every fix,
-                    step by step. No tech skills required. One-time purchase.
+                    The Secure Setup Guide walks you through fixing every one of
+                    them &mdash; step by step, in one afternoon.
                   </p>
                   <a
                     href="/#buy"
@@ -1009,7 +1062,7 @@ export default function CameraSecurityQuiz() {
                       boxShadow: "0 4px 20px rgba(239, 68, 68, 0.3)",
                     }}
                   >
-                    Get the Guide &mdash; $19
+                    Get the Guide &mdash; $29
                   </a>
                   <p
                     style={{

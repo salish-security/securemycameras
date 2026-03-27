@@ -11,6 +11,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Meta Pixel — replace XXXXXXXXXXXXXXXX with your actual pixel ID -->
+    <script is:inline>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', 'XXXXXXXXXXXXXXXX');
+    fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=XXXXXXXXXXXXXXXX&ev=PageView&noscript=1" /></noscript>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -369,7 +383,7 @@
         }
         .faq-item.open .faq-q::after { content: '\2212'; }
         .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-        .faq-item.open .faq-a { max-height: 300px; }
+        .faq-item.open .faq-a { max-height: 800px; }
         .faq-a p { padding-top: 12px; font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
 
         footer { padding: 40px 0; text-align: center; border-top: 1px solid var(--border); }
@@ -402,7 +416,7 @@
         </a>
         <div class="nav-links">
             <a href="/quiz" class="nav-quiz-link">Free Security Quiz</a>
-            <a href="#buy" class="nav-cta">Get the Guide &mdash; $19</a>
+            <a href="#buy" class="nav-cta">Get the Guide &mdash; $29</a>
         </div>
     </div>
 </nav>
@@ -414,7 +428,7 @@
         <h1>Your Security Camera Might Be<br> <em>Your Biggest Vulnerability</em></h1>
         <p class="hero-sub">The step-by-step guide to setting up Ring, Nest, Arlo, Wyze, and other smart cameras so they actually protect you &mdash; instead of putting your family at risk.</p>
         <button class="cta-btn paddle-buy" type="button">
-            Get the Secure Setup Guide <span class="cta-price">&mdash; $19</span>
+            Get the Secure Setup Guide <span class="cta-price">&mdash; $29</span>
         </button>
         <span class="cta-note">Instant PDF download. Follow it once and you're done.</span>
     </div>
@@ -568,12 +582,12 @@
             <h2>Protect your cameras in<br>one afternoon.</h2>
             <p>Follow the guide once. Print the cheat sheet. Run the quarterly check-up. That's it.</p>
             <div class="price-anchor">
-                <span class="new-price">$19</span>
+                <span class="new-price">$29</span>
             </div>
             <button class="cta-btn paddle-buy" type="button">
                 Download the Guide Now
             </button>
-            <span class="cta-note">Instant PDF download. No subscription. No upsells.</span>
+            <span class="cta-note">Instant PDF download. No subscription. One-time purchase.</span>
         </div>
     </div>
 </section>
@@ -619,17 +633,18 @@
             Published by <a href="https://salishsecurity.ai">Salish AI Security Lab</a><br>
             <a href="mailto:inquiry@salishsecurity.ai">inquiry@salishsecurity.ai</a> &middot;
             <a href="/legal/privacy">Privacy</a> &middot;
-            <a href="/legal/terms">Terms</a>
+            <a href="/legal/terms">Terms</a> &middot;
+            <a href="/legal/terms#refunds">Refunds</a>
         </p>
     </div>
 </footer>
 
 <!-- Paddle Checkout -->
-<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-<script>
-    // Initialize Paddle — replace token and priceId with real values from Paddle dashboard
+<script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script is:inline>
+    // Initialize Paddle
     Paddle.Initialize({
-        token: 'PADDLE_CLIENT_TOKEN_PLACEHOLDER',
+        token: 'LIVE_PADDLE_CLIENT_TOKEN',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleCheckoutComplete(event.data);
@@ -641,34 +656,40 @@
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             Paddle.Checkout.open({
-                items: [{ priceId: 'PADDLE_PRICE_ID_PLACEHOLDER', quantity: 1 }],
+                items: [{ priceId: 'LIVE_GUIDE_PRICE_ID', quantity: 1 }],
             });
         });
     });
 
-    // After successful checkout, get a signed download token and redirect
+    // After successful checkout, get a signed download token and redirect to upsell
     async function handleCheckoutComplete(data) {
         var transactionId = data && data.transaction_id;
+
+        // Fire Meta Pixel Purchase event
+        if (typeof fbq === 'function') {
+            fbq('track', 'Purchase', { value: 29.00, currency: 'USD' });
+        }
+
         if (!transactionId) {
             // Fallback: redirect without token
-            window.location.href = '/success';
+            window.location.href = '/upsell';
             return;
         }
         try {
             var res = await fetch('/api/create-download-token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transactionId: transactionId }),
+                body: JSON.stringify({ transactionId: transactionId, fileType: 'guide' }),
             });
             var result = await res.json();
             if (result.ok && result.token && result.expires) {
-                window.location.href = '/success?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+                window.location.href = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
             } else {
-                window.location.href = '/success';
+                window.location.href = '/upsell';
             }
         } catch (err) {
             console.error('Token creation failed:', err);
-            window.location.href = '/success';
+            window.location.href = '/upsell';
         }
     }
 
