@@ -669,7 +669,12 @@ export default function CameraSecurityQuiz() {
                     outline: "none",
                   }}
                 >
-                  Your Camera Security Score Is Ready
+                  {(() => {
+                    const failCount = answers.filter((a) => a.points === 0).length;
+                    return (risk.level === "CRITICAL" || risk.level === "HIGH")
+                      ? `You Failed ${failCount} of ${QUESTIONS.length} Security Checks`
+                      : `${failCount} Security Gaps Found in Your Setup`;
+                  })()}
                 </h2>
 
                 <p
@@ -680,7 +685,7 @@ export default function CameraSecurityQuiz() {
                     marginBottom: 28,
                   }}
                 >
-                  Enter your email to see your score and get a personalized action plan.
+                  Enter your email to get your full vulnerability report &mdash; including which gaps attackers exploit first and how to close each one.
                 </p>
 
                 <div
@@ -736,7 +741,7 @@ export default function CameraSecurityQuiz() {
                       opacity: submitting ? 0.7 : 1,
                     }}
                   >
-                    {submitting ? "Sending\u2026" : "See My Score \u2192"}
+                    {submitting ? "Sending\u2026" : "Show My Vulnerabilities \u2192"}
                   </button>
                 </div>
                 {emailError && (
@@ -757,12 +762,12 @@ export default function CameraSecurityQuiz() {
                 <p
                   style={{
                     fontSize: 11,
-                    color: "#374151",
+                    color: "#6B7280",
                     marginTop: 16,
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
-                  We'll also send you 3 free security tips over the next week. Unsubscribe anytime.
+                  You'll get 5 targeted fix emails over the next week. Unsubscribe anytime.
                 </p>
               </div>
             </div>
@@ -997,13 +1002,16 @@ export default function CameraSecurityQuiz() {
                 </div>
 
                 {/* CTA */}
+                {(() => {
+                  const failCount = answers.filter((a) => a.points === 0).length;
+                  return (
                 <div
                   style={{
                     background: "#0C0F14",
                     borderRadius: 12,
                     padding: "24px",
                     textAlign: "center" as const,
-                    border: "1px solid #1E2330",
+                    border: `1px solid ${risk.color}44`,
                   }}
                 >
                   <div
@@ -1029,52 +1037,81 @@ export default function CameraSecurityQuiz() {
                   >
                     You have{" "}
                     <span style={{ color: risk.color, fontWeight: 700 }}>
-                      {answers.filter((a) => a.points === 0).length} open vulnerabilities
+                      {failCount} open vulnerabilities
                     </span>{" "}
                     in your camera setup.
                   </p>
                   <p
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       color: "#9CA3AF",
-                      marginBottom: 20,
+                      marginBottom: 16,
                       lineHeight: 1.5,
                       fontFamily: "'Outfit', sans-serif",
                     }}
                   >
-                    The Secure Setup Guide walks you through fixing every one of
-                    them &mdash; step by step, in one afternoon.
+                    These vulnerabilities are exploitable right now. The guide closes all of them &mdash; step by step, in one afternoon.
                   </p>
-                  <a
-                    href="/#buy"
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#6B7280",
+                      marginBottom: 16,
+                      lineHeight: 1.5,
+                      fontFamily: "'Outfit', sans-serif",
+                    }}
+                  >
+                    A 22-page PDF with a 10-step checklist covering Ring, Nest, Arlo, Wyze, Eufy, and Reolink.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (typeof window !== "undefined" && (window as any).Paddle) {
+                        (window as any).Paddle.Checkout.open({
+                          items: [{ priceId: "LIVE_GUIDE_PRICE_ID", quantity: 1 }],
+                        });
+                      }
+                    }}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
                       gap: 8,
                       background: "#EF4444",
                       color: "white",
+                      border: "none",
                       padding: "14px 28px",
                       borderRadius: 10,
-                      textDecoration: "none",
                       fontSize: 16,
                       fontWeight: 600,
                       fontFamily: "'Outfit', sans-serif",
                       boxShadow: "0 4px 20px rgba(239, 68, 68, 0.3)",
+                      cursor: "pointer",
                     }}
                   >
-                    Get the Guide &mdash; $29
-                  </a>
+                    {failCount > 0 ? `Fix All ${failCount} Vulnerabilities` : "Get the Guide"} &mdash; $29
+                  </button>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#6B7280",
+                      marginTop: 10,
+                      fontFamily: "'Outfit', sans-serif",
+                    }}
+                  >
+                    Not useful? Full refund within 30 days.
+                  </p>
                   <p
                     style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 11,
-                      color: "#374151",
-                      marginTop: 12,
+                      color: "#4B5563",
+                      marginTop: 8,
                     }}
                   >
                     Instant PDF download. No subscription.
                   </p>
                 </div>
+                  );
+                })()}
 
                 {/* Restart */}
                 <div style={{ textAlign: "center" as const, marginTop: 20 }}>
