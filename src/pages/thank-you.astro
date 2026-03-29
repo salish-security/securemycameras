@@ -1,0 +1,181 @@
+---
+// Post-purchase download page — supports both guide and upsell downloads
+// Replaces /success for the new upsell flow; /success remains for backward compat
+---
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Guide Is Ready | Secure My Cameras</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFAF9;
+            color: #1C1917;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            background: white;
+            border: 1px solid #E7E5E4;
+            border-radius: 16px;
+            padding: 48px 40px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+        }
+        .check-icon {
+            width: 64px; height: 64px;
+            background: #ECFDF5;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 32px;
+            color: #059669;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+        .sub {
+            font-size: 16px;
+            color: #57534E;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        .downloads {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: #059669;
+            color: white;
+            padding: 16px 36px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 17px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+        }
+        .download-btn:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+        .download-btn.secondary {
+            background: #2563EB;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+        }
+        .download-btn.secondary:hover {
+            background: #1D4ED8;
+        }
+        .note {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #A8A29E;
+        }
+        .divider {
+            border: none;
+            border-top: 1px solid #E7E5E4;
+            margin: 32px 0;
+        }
+        .tip {
+            font-size: 14px;
+            color: #57534E;
+            line-height: 1.6;
+        }
+        .tip strong {
+            color: #1C1917;
+        }
+        @media (max-width: 600px) {
+            .card { padding: 32px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="check-icon">&#10003;</div>
+        <h1>Your guide is ready.</h1>
+        <p class="sub">Download it now and block out 30 minutes this weekend. Follow it start to finish &mdash; one camera at a time.</p>
+
+        <div class="downloads">
+            <a id="guide-download" href="#" class="download-btn" style="display:none;">
+                &#128196; Download Secure Setup Guide (PDF)
+            </a>
+
+            <a id="checklist-download" href="#" class="download-btn secondary" style="display:none;">
+                &#128203; Download Network Security Checklist (PDF)
+            </a>
+        </div>
+
+        <div id="no-token-msg" style="display:none;">
+            <p class="sub" style="margin-bottom:0;">
+                Check your email &mdash; we sent a download link to the address used at checkout.<br>
+                <span style="font-size:13px;color:#A8A29E;">If you don't see it, check spam or contact inquiry@salishsecurity.ai</span>
+            </p>
+        </div>
+
+        <p class="note" id="download-note" style="display:none;">
+            A backup download link is also in your email receipt. Links expire after 48 hours &mdash; use the email link if this one expires.
+        </p>
+
+        <hr class="divider">
+
+        <p class="tip">
+            <strong>Pro tip:</strong> Print the cheat sheet on the last page and keep it near your router. Run the check-up quarterly &mdash; it takes 15 minutes.
+        </p>
+    </div>
+
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var token = params.get('token');
+            var expires = params.get('expires');
+            var upsell = params.get('upsell');
+            var utoken = params.get('utoken');
+            var uexpires = params.get('uexpires');
+            var guideLink = document.getElementById('guide-download');
+            var checklistLink = document.getElementById('checklist-download');
+            var noTokenMsg = document.getElementById('no-token-msg');
+            var downloadNote = document.getElementById('download-note');
+
+            if (token && expires) {
+                // Guide download (always shown if we have a token)
+                guideLink.href = '/api/download?token=' + encodeURIComponent(token) + '&expires=' + encodeURIComponent(expires) + '&file=guide';
+                guideLink.style.display = 'inline-flex';
+                downloadNote.style.display = 'block';
+
+                // Upsell download (shown if they purchased the network checklist)
+                if (upsell === 'true') {
+                    var cToken = utoken || token;
+                    var cExpires = uexpires || expires;
+                    checklistLink.href = '/api/download?token=' + encodeURIComponent(cToken) + '&expires=' + encodeURIComponent(cExpires) + '&file=checklist';
+                    checklistLink.style.display = 'inline-flex';
+                }
+            } else {
+                noTokenMsg.style.display = 'block';
+            }
+        })();
+    </script>
+</body>
+</html>

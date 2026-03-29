@@ -2,7 +2,7 @@
 
 ## What this is
 An Astro site on Cloudflare Workers for **securemycameras.com**.
-Sells the **Secure Camera Setup Guide** — a 22-page PDF for non-technical homeowners. One-time purchase at **$19**.
+Sells the **Secure Camera Setup Guide** ($29) and **Home Network Security Checklist** ($47 upsell) — digital PDFs for non-technical homeowners.
 
 ## Stack
 - **Framework:** Astro 5 (static output) + standalone Cloudflare Worker (`src/worker.ts`)
@@ -44,17 +44,27 @@ Background: `#0C0F14`. Fonts: JetBrains Mono + Outfit.
 |---|---|---|
 | `/` | `src/pages/index.astro` | Landing page — hero, fear, what's inside, proof, for-who, pricing, FAQ |
 | `/quiz` | `src/pages/quiz.astro` | Camera security quiz (React island) |
-| `/success` | `src/pages/success.astro` | Post-purchase download page |
+| `/upsell` | `src/pages/upsell.astro` | Post-purchase upsell offer (Network Security Checklist, $47) |
+| `/thank-you` | `src/pages/thank-you.astro` | Download page — guide + optional upsell PDF |
+| `/success` | `src/pages/success.astro` | Legacy download page (kept for backward compat with existing links) |
 | `/legal/privacy` | `src/pages/legal/privacy.astro` | Privacy policy |
 | `/legal/terms` | `src/pages/legal/terms.astro` | Terms of service |
+
+## Checkout Flow
+```
+Homepage or Quiz Results → Paddle Checkout ($29)
+  → /upsell?token=...&expires=...
+    → Buy upsell ($47) → /thank-you?token=...&expires=...&upsell=true
+    → Decline upsell → /thank-you?token=...&expires=...
+```
 
 ## API Routes (handled by `src/worker.ts`)
 | Route | Purpose |
 |---|---|
-| `POST /api/subscribe` | Quiz email → ConvertKit |
-| `POST /api/paddle-webhook` | Paddle purchase → ConvertKit tag + download URL |
+| `POST /api/subscribe` | Quiz email → ConvertKit (form + `quiz-completed` tag) |
+| `POST /api/paddle-webhook` | Paddle purchase → ConvertKit tag + download URL (supports guide + upsell products) |
 | `POST /api/create-download-token` | Generate signed download token (called after checkout) |
-| `GET /api/download` | Serve PDF from R2 (requires valid signed token) |
+| `GET /api/download?file=guide\|checklist` | Serve PDF from R2 (requires valid signed token, `file` param selects product) |
 
 ## Download Security
 Downloads are gated by HMAC-SHA256 signed tokens with time-limited expiry:
@@ -66,23 +76,40 @@ Downloads are gated by HMAC-SHA256 signed tokens with time-limited expiry:
 ## Secrets (via `wrangler secret put`)
 - `PADDLE_WEBHOOK_SECRET`
 - `CONVERTKIT_API_SECRET`
-- `CONVERTKIT_PURCHASE_TAG`
+- `CONVERTKIT_PURCHASE_TAG` — legacy tag (still used as fallback for guide purchases)
+- `CONVERTKIT_QUIZ_TAG` — applied on quiz email submission
+- `CONVERTKIT_GUIDE_TAG` — applied on guide purchase
+- `CONVERTKIT_UPSELL_TAG` — applied on network checklist purchase
+- `PADDLE_GUIDE_PRODUCT_ID` — Paddle product ID for the $29 guide
+- `PADDLE_UPSELL_PRODUCT_ID` — Paddle product ID for the $47 checklist
 - `KIT_API_KEY`
 - `KIT_FORM_ID`
 - `DOWNLOAD_SECRET` — 32-byte hex string for signing download tokens
+
+## R2 Files
+- `secure-your-cameras-guide.pdf` — main guide ($29)
+- `home-network-security-checklist.pdf` — upsell checklist ($47, pending upload)
+
+## Meta Pixel
+- Placeholder pixel ID `XXXXXXXXXXXXXXXX` in `index.astro` and `quiz.astro`
+- Events tracked: `PageView`, `ViewContent` (quiz), `Lead` (email submit), `Purchase` (checkout complete)
+- Replace placeholder with real pixel ID from Meta Business Manager
 
 ## GitHub
 - Repo: `salish-security/securemycameras`
 - Deploy: push to `main` triggers `.github/workflows/deploy.yml`
 - Repo secrets needed: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 
-## Pending
-- [ ] Set Paddle client token + price ID in `index.astro` (replace `PADDLE_*_PLACEHOLDER`)
-- [ ] Create Paddle product ($19 one-time)
-- [ ] Create ConvertKit form + purchase tag
-- [ ] Set Cloudflare secrets via `wrangler secret put`
-- [ ] Set GitHub repo secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)
-- [ ] Create R2 bucket: `wrangler r2 bucket create securemycameras-files`
-- [ ] Upload PDF: `wrangler r2 object put securemycameras-files/secure-your-cameras-guide.pdf --file=...`
-- [ ] Add custom domain `securemycameras.com` in Cloudflare Workers
-- [ ] Add Cloudflare Web Analytics script tag
+## Pending (Manual — Brian)
+- [ ] Update Paddle guide price $19 → $29
+- [ ] Create second Paddle product: Home Network Security Checklist ($47)
+- [ ] Set `PADDLE_GUIDE_PRODUCT_ID` and `PADDLE_UPSELL_PRODUCT_ID` secrets
+- [ ] Replace upsell price ID placeholder in `upsell.astro` (`UPSELL_PRICE_ID_PLACEHOLDER`)
+- [ ] Create `quiz-completed` tag in ConvertKit
+- [ ] Set `CONVERTKIT_QUIZ_TAG`, `CONVERTKIT_GUIDE_TAG`, `CONVERTKIT_UPSELL_TAG` secrets
+- [ ] Set up ConvertKit email sequence (copy in `tasks/email-sequence-copy.md`)
+- [ ] Set up ConvertKit automations (quiz trigger, purchase suppression)
+- [ ] Configure sending domain `mail.securemycameras.com` (DKIM + SPF DNS records)
+- [ ] Write/produce upsell PDF and upload to R2
+- [ ] Provide Meta Pixel ID → replace `XXXXXXXXXXXXXXXX` in `index.astro` and `quiz.astro`
+- [ ] Create Facebook ad campaign using creative specs from spec doc
