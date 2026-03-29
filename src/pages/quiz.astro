@@ -32,5 +32,49 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
 </head>
 <body>
     <CameraSecurityQuiz client:load />
+
+<!-- Paddle Checkout (for direct purchase from quiz results) -->
+<script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script is:inline>
+    // Initialize Paddle
+    Paddle.Initialize({
+        token: 'LIVE_PADDLE_CLIENT_TOKEN',
+        eventCallback: function(event) {
+            if (event.name === 'checkout.completed') {
+                handleCheckoutComplete(event.data);
+            }
+        },
+    });
+
+    async function handleCheckoutComplete(data) {
+        var transactionId = data && data.transaction_id;
+
+        // Fire Meta Pixel Purchase event
+        if (typeof fbq === 'function') {
+            fbq('track', 'Purchase', { value: 29.00, currency: 'USD' });
+        }
+
+        if (!transactionId) {
+            window.location.href = '/upsell';
+            return;
+        }
+        try {
+            var res = await fetch('/api/create-download-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transactionId: transactionId, fileType: 'guide' }),
+            });
+            var result = await res.json();
+            if (result.ok && result.token && result.expires) {
+                window.location.href = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+            } else {
+                window.location.href = '/upsell';
+            }
+        } catch (err) {
+            console.error('Token creation failed:', err);
+            window.location.href = '/upsell';
+        }
+    }
+</script>
 </body>
 </html>
