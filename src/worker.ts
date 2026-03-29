@@ -6,6 +6,11 @@ export interface Env {
   CONVERTKIT_PURCHASE_TAG: string;
   KIT_API_KEY: string;
   KIT_FORM_ID: string;
+  CONVERTKIT_QUIZ_TAG: string;
+  CONVERTKIT_GUIDE_TAG: string;
+  CONVERTKIT_UPSELL_TAG: string;
+  PADDLE_GUIDE_PRODUCT_ID: string;
+  PADDLE_UPSELL_PRODUCT_ID: string;
   DOWNLOAD_SECRET: string;
   SUPPORT_EMAIL: string;
   PRODUCT_NAME: string;
@@ -88,6 +93,29 @@ async function handleSubscribe(request: Request, env: Env): Promise<Response> {
     return json({ ok: false }, 502);
   }
 
+  // Apply quiz-completed tag for automation triggers
+  if (env.CONVERTKIT_QUIZ_TAG) {
+    try {
+      await fetch(
+        `https://api.convertkit.com/v3/tags/${env.CONVERTKIT_QUIZ_TAG}/subscribe`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            api_secret: env.CONVERTKIT_API_SECRET,
+            email,
+            fields: {
+              camera_score: String(score ?? ""),
+              camera_tier: String(tier ?? ""),
+            },
+          }),
+        }
+      );
+    } catch (err) {
+      console.log("Quiz tag error:", err);
+    }
+  }
+
   return json({ ok: true }, 200);
 }
 
@@ -101,15 +129,16 @@ async function handleCreateDownloadToken(request: Request, env: Env): Promise<Re
     return json({ ok: false, error: "Invalid JSON" }, 400);
   }
 
-  const { transactionId } = body;
+  const { transactionId, fileType } = body;
   if (!transactionId || typeof transactionId !== "string") {
     return json({ ok: false, error: "Missing transactionId" }, 400);
   }
+  const file = (fileType === "checklist") ? "checklist" : "guide";
 
   const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_IMMEDIATE;
-  const token = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET);
+  const token = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, file);
 
-  return json({ ok: true, token, expires }, 200);
+  return json({ ok: true, token, expires, file }, 200);
 }
 
 /** ---------------- Paddle webhook handler ---------------- */
@@ -145,29 +174,63 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     return;
   }
 
-  // Generate a 7-day download link for email delivery
+  // Determine which product(s) were purchased
+  const items: any[] = event?.data?.items || [];
+  const productIds = items.map((item: any) => item?.price?.product_id || "");
+
+  const boughtGuide = !env.PADDLE_GUIDE_PRODUCT_ID || productIds.includes(env.PADDLE_GUIDE_PRODUCT_ID) || productIds.length === 0;
+  const boughtUpsell = env.PADDLE_UPSELL_PRODUCT_ID && productIds.includes(env.PADDLE_UPSELL_PRODUCT_ID);
+
+  // Generate file-specific 7-day download links for email delivery
   const origin = new URL(requestUrl).origin;
-  let downloadUrl = "";
+  let guideDownloadUrl = "";
+  let checklistDownloadUrl = "";
   if (transactionId && env.DOWNLOAD_SECRET) {
     const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
-    const token = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET);
-    downloadUrl = `${origin}/api/download?token=${token}&expires=${expires}`;
+    const guideToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "guide");
+    guideDownloadUrl = `${origin}/api/download?token=${guideToken}&expires=${expires}&file=guide`;
+
+    const checklistToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "checklist");
+    checklistDownloadUrl = `${origin}/api/download?token=${checklistToken}&expires=${expires}&file=checklist`;
   }
 
-  // Tag purchaser in Kit and set download_url custom field
+  // Tag purchaser in Kit based on which product they bought
+  const tagCalls: Promise<void>[] = [];
+
+  if (boughtGuide) {
+    const tagId = env.CONVERTKIT_GUIDE_TAG || env.CONVERTKIT_PURCHASE_TAG;
+    tagCalls.push(tagSubscriberInKit(env, tagId, email, {
+      download_url: guideDownloadUrl,
+      transaction_id: transactionId || "",
+    }));
+  }
+
+  if (boughtUpsell) {
+    tagCalls.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
+      checklist_download_url: checklistDownloadUrl,
+      transaction_id: transactionId || "",
+    }));
+  }
+
+  await Promise.allSettled(tagCalls);
+}
+
+async function tagSubscriberInKit(
+  env: Env,
+  tagId: string,
+  email: string,
+  fields: Record<string, string>
+): Promise<void> {
   try {
     const res = await fetch(
-      `https://api.convertkit.com/v3/tags/${env.CONVERTKIT_PURCHASE_TAG}/subscribe`,
+      `https://api.convertkit.com/v3/tags/${tagId}/subscribe`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           api_secret: env.CONVERTKIT_API_SECRET,
           email,
-          fields: {
-            download_url: downloadUrl,
-            transaction_id: transactionId || "",
-          },
+          fields,
         }),
       }
     );
@@ -207,25 +270,33 @@ async function handlePdfDownload(url: URL, env: Env): Promise<Response> {
     );
   }
 
-  // Verify HMAC — we don't know the transactionId from the URL alone,
-  // so the token must be verified by recomputing from the same inputs.
-  // We embed transactionId inside the token creation but verify by
-  // checking the token matches what we'd generate for ANY valid transactionId.
-  // Instead: use a simpler scheme — token = HMAC(expires, secret).
-  // This is sufficient since the expires value is signed and tamper-proof.
-  const expected = await hmacSha256Hex(env.DOWNLOAD_SECRET, `download:${expiresStr}`);
+  // Read file param before verification (file is part of the signed payload)
+  const fileParam = url.searchParams.get("file") || "guide";
+  const FILES: Record<string, { r2Key: string; filename: string }> = {
+    guide: {
+      r2Key: "secure-your-cameras-guide.pdf",
+      filename: "Secure-Your-Cameras-Guide.pdf",
+    },
+    checklist: {
+      r2Key: "home-network-security-checklist.pdf",
+      filename: "Home-Network-Security-Checklist.pdf",
+    },
+  };
+  const fileInfo = FILES[fileParam] || FILES.guide;
+
+  // Verify HMAC — token signs expires + fileType
+  const expected = await hmacSha256Hex(env.DOWNLOAD_SECRET, `download:${fileParam}:${expiresStr}`);
   if (!timingSafeEqualHex(expected, token)) {
     return new Response("Invalid download link.", { status: 403 });
   }
-
-  const obj = await env.PRIVATE_FILES.get("secure-your-cameras-guide.pdf");
+  const obj = await env.PRIVATE_FILES.get(fileInfo.r2Key);
   if (!obj) {
     return new Response("Download coming soon — check back shortly.", { status: 404 });
   }
 
   const headers = new Headers();
   headers.set("Content-Type", "application/pdf");
-  headers.set("Content-Disposition", 'attachment; filename="Secure-Your-Cameras-Guide.pdf"');
+  headers.set("Content-Disposition", `attachment; filename="${fileInfo.filename}"`);
   headers.set("Cache-Control", "private, no-store");
 
   return new Response(obj.body, { headers });
@@ -233,12 +304,11 @@ async function handlePdfDownload(url: URL, env: Env): Promise<Response> {
 
 /** ---------------- Download token generation ---------------- */
 
-async function generateDownloadToken(transactionId: string, expires: number, secret: string): Promise<string> {
-  // Token signs the expiry timestamp. The transactionId is accepted as input
-  // for audit purposes but the token validity depends only on expires + secret.
-  // This means any valid token with a future expiry will work — the security
-  // boundary is that only our server can generate valid tokens.
-  return hmacSha256Hex(secret, `download:${expires}`);
+async function generateDownloadToken(transactionId: string, expires: number, secret: string, fileType: string = "guide"): Promise<string> {
+  // Token signs the expiry timestamp + file type. The transactionId is accepted
+  // for audit purposes but token validity depends on expires + fileType + secret.
+  // A guide token cannot be used to download the checklist and vice versa.
+  return hmacSha256Hex(secret, `download:${fileType}:${expires}`);
 }
 
 /** ---------------- Paddle signature verification ---------------- */
