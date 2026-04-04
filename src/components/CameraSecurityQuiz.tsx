@@ -1067,7 +1067,7 @@ export default function CameraSecurityQuiz() {
                     onClick={() => {
                       if (typeof window !== "undefined" && (window as any).Paddle) {
                         (window as any).Paddle.Checkout.open({
-                          items: [{ priceId: "LIVE_GUIDE_PRICE_ID", quantity: 1 }],
+                          items: [{ priceId: "pri_01km3xxxxj43c9q84yeyn3k642", quantity: 1 }],
                         });
                       }
                     }}
