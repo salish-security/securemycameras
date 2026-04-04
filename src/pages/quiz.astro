@@ -8,7 +8,7 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Is Your Smart Camera Hackable? Free Security Quiz | securemycameras.com</title>
     <meta name="description" content="Answer 9 quick questions about your camera setup. Get an instant risk score and find out if your home security system is actually secure.">
-    <!-- Meta Pixel — replace XXXXXXXXXXXXXXXX with your actual pixel ID -->
+    <!-- Meta Pixel — replace 1444766053233744 with your actual pixel ID -->
     <script is:inline>
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -18,10 +18,10 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', 'XXXXXXXXXXXXXXXX');
+    fbq('init', '1444766053233744');
     fbq('track', 'PageView');
     </script>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=XXXXXXXXXXXXXXXX&ev=PageView&noscript=1" /></noscript>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1444766053233744&ev=PageView&noscript=1" /></noscript>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -36,9 +36,10 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
 <!-- Paddle Checkout (for direct purchase from quiz results) -->
 <script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script is:inline>
-    // Initialize Paddle
+    // Initialize Paddle (SANDBOX MODE — for testing)
+    Paddle.Environment.set('sandbox');
     Paddle.Initialize({
-        token: 'LIVE_PADDLE_CLIENT_TOKEN',
+        token: 'test_4cc33c787bf309e13fcbb4dabec',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleCheckoutComplete(event.data);

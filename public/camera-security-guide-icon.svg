@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Shield body -->
+  <path d="M256 42L60 132v120c0 118 84 228 196 260 112-32 196-142 196-260V132L256 42z" fill="#0f172a" stroke="#1e293b" stroke-width="8"/>
+  
+  <!-- Inner shield highlight -->
+  <path d="M256 72L88 150v106c0 104 74 200 168 228 94-28 168-124 168-228V150L256 72z" fill="#1a2332"/>
+  
+  <!-- Camera body -->
+  <rect x="178" y="210" width="156" height="100" rx="12" fill="#1e293b" stroke="#dc2626" stroke-width="3"/>
+  
+  <!-- Camera lens housing -->
+  <circle cx="256" cy="255" r="38" fill="#0f172a" stroke="#dc2626" stroke-width="2.5"/>
+  
+  <!-- Camera lens inner ring -->
+  <circle cx="256" cy="255" r="26" fill="#1a2332" stroke="#dc2626" stroke-width="2" opacity="0.7"/>
+  
+  <!-- Camera lens core (eye/sensor) -->
+  <circle cx="256" cy="255" r="14" fill="#dc2626"/>
+  
+  <!-- Lens reflection dot -->
+  <circle cx="250" cy="249" r="4" fill="#ff6b6b" opacity="0.6"/>
+  
+  <!-- Camera top section (flash/sensor bar) -->
+  <rect x="198" y="200" width="116" height="18" rx="6" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+  
+  <!-- LED indicator -->
+  <circle cx="214" cy="209" r="4" fill="#dc2626"/>
+  <circle cx="214" cy="209" r="7" fill="#dc2626" opacity="0.2"/>
+  
+  <!-- Camera mount/base -->
+  <rect x="238" y="310" width="36" height="14" rx="3" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+  <rect x="230" y="322" width="52" height="8" rx="4" fill="#1e293b" stroke="#dc2626" stroke-width="2"/>
+  
+  <!-- Shield checkmark (security indicator) -->
+  <path d="M340 160l-14 14-8-8" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="332" cy="167" r="18" fill="none" stroke="#16a34a" stroke-width="2.5" opacity="0.5"/>
+  
+  <!-- Scan lines (surveillance aesthetic) -->
+  <line x1="148" y1="180" x2="172" y2="180" stroke="#dc2626" stroke-width="1.5" opacity="0.3"/>
+  <line x1="148" y1="186" x2="166" y2="186" stroke="#dc2626" stroke-width="1.5" opacity="0.2"/>
+  <line x1="340" y1="290" x2="364" y2="290" stroke="#dc2626" stroke-width="1.5" opacity="0.3"/>
+  <line x1="346" y1="296" x2="364" y2="296" stroke="#dc2626" stroke-width="1.5" opacity="0.2"/>
+</svg>
