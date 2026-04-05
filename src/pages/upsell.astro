@@ -282,6 +282,7 @@
     var params = new URLSearchParams(window.location.search);
     var guideToken = params.get('token') || '';
     var guideExpires = params.get('expires') || '';
+    var customerEmail = params.get('email') || '';
 
     // Hide confirmation banner if no valid token (direct navigation, not post-checkout)
     if (!guideToken || !guideExpires) {
@@ -299,10 +300,11 @@
     // Upsell buy button
     document.querySelector('.paddle-upsell-buy').addEventListener('click', function(e) {
         e.preventDefault();
-        Paddle.Checkout.open({
-            // PLACEHOLDER — replace with actual upsell price ID from Paddle
+        var checkoutConfig = {
             items: [{ priceId: 'pri_01knb8grb8dphs3z0sqdq01q62', quantity: 1 }],
-        });
+        };
+        if (customerEmail) checkoutConfig.customer = { email: customerEmail };
+        Paddle.Checkout.open(checkoutConfig);
     });
 
     // After upsell checkout completes — generate checklist-specific download token

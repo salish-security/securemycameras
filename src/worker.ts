@@ -144,14 +144,23 @@ async function handleCreateDownloadToken(request: Request, env: Env): Promise<Re
 /** ---------------- Paddle webhook handler ---------------- */
 
 async function handlePaddleWebhook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  console.log("Paddle webhook: received request");
   const sig = request.headers.get("Paddle-Signature");
-  if (!sig) return new Response("Missing Paddle-Signature", { status: 400 });
+  if (!sig) {
+    console.log("Paddle webhook: missing Paddle-Signature header");
+    return new Response("Missing Paddle-Signature", { status: 400 });
+  }
 
   const rawBody = await request.text();
+  console.log("Paddle webhook: body length =", rawBody.length, "sig present =", !!sig);
 
   const valid = await verifyPaddleSignature(rawBody, sig, env.PADDLE_WEBHOOK_SECRET);
-  if (!valid) return new Response("Invalid signature", { status: 400 });
+  if (!valid) {
+    console.log("Paddle webhook: signature verification FAILED");
+    return new Response("Invalid signature", { status: 400 });
+  }
 
+  console.log("Paddle webhook: signature valid, processing event");
   ctx.waitUntil(processPaddleEvent(rawBody, env, request.url));
   return new Response("OK", { status: 200 });
 }
@@ -165,21 +174,36 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     return;
   }
 
+  console.log("Paddle webhook: event_type =", event?.event_type);
   if (event?.event_type !== "transaction.completed") return;
 
-  const email = event?.data?.customer?.email;
+  // Try multiple paths for email — Paddle v2 sandbox may nest differently
+  const email =
+    event?.data?.customer?.email ||
+    event?.data?.billing_details?.email ||
+    event?.data?.checkout?.customer?.email ||
+    null;
   const transactionId = event?.data?.id;
+
+  console.log("Paddle webhook: email =", email, "txnId =", transactionId);
+  console.log("Paddle webhook: customer obj =", JSON.stringify(event?.data?.customer));
+  console.log("Paddle webhook: billing_details =", JSON.stringify(event?.data?.billing_details));
+
   if (!email) {
-    console.log("Paddle webhook: no customer email in payload");
+    console.log("Paddle webhook: no customer email in payload — keys:", Object.keys(event?.data || {}));
     return;
   }
 
   // Determine which product(s) were purchased
   const items: any[] = event?.data?.items || [];
-  const productIds = items.map((item: any) => item?.price?.product_id || "");
+  const productIds = items.map((item: any) => item?.price?.product_id || item?.product?.id || "");
+
+  console.log("Paddle webhook: productIds =", JSON.stringify(productIds), "env.PADDLE_GUIDE_PRODUCT_ID =", env.PADDLE_GUIDE_PRODUCT_ID);
 
   const boughtGuide = !env.PADDLE_GUIDE_PRODUCT_ID || productIds.includes(env.PADDLE_GUIDE_PRODUCT_ID) || productIds.length === 0;
   const boughtUpsell = env.PADDLE_UPSELL_PRODUCT_ID && productIds.includes(env.PADDLE_UPSELL_PRODUCT_ID);
+
+  console.log("Paddle webhook: boughtGuide =", boughtGuide, "boughtUpsell =", boughtUpsell);
 
   // Generate file-specific 7-day download links for email delivery
   const origin = new URL(requestUrl).origin;
@@ -234,9 +258,11 @@ async function tagSubscriberInKit(
         }),
       }
     );
+    const resText = await res.text().catch(() => "");
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.log("ConvertKit tag error:", res.status, errText);
+      console.log("ConvertKit tag error:", res.status, resText);
+    } else {
+      console.log("ConvertKit tag OK:", res.status, resText.substring(0, 200));
     }
   } catch (err) {
     console.log("ConvertKit request failed:", err);
