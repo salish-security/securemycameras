@@ -665,6 +665,7 @@
     // After successful checkout, get a signed download token and redirect to upsell
     async function handleCheckoutComplete(data) {
         var transactionId = data && data.transaction_id;
+        var customerEmail = (data && data.customer && data.customer.email) || '';
 
         // Fire Meta Pixel Purchase event
         if (typeof fbq === 'function') {
@@ -672,8 +673,7 @@
         }
 
         if (!transactionId) {
-            // Fallback: redirect without token
-            window.location.href = '/upsell';
+            window.location.href = '/upsell' + (customerEmail ? '?email=' + encodeURIComponent(customerEmail) : '');
             return;
         }
         try {
@@ -684,9 +684,11 @@
             });
             var result = await res.json();
             if (result.ok && result.token && result.expires) {
-                window.location.href = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+                var url = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+                if (customerEmail) url += '&email=' + encodeURIComponent(customerEmail);
+                window.location.href = url;
             } else {
-                window.location.href = '/upsell';
+                window.location.href = '/upsell' + (customerEmail ? '?email=' + encodeURIComponent(customerEmail) : '');
             }
         } catch (err) {
             console.error('Token creation failed:', err);
