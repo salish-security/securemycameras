@@ -153,6 +153,8 @@ async function handlePaddleWebhook(request: Request, env: Env, ctx: ExecutionCon
 
   const rawBody = await request.text();
   console.log("Paddle webhook: body length =", rawBody.length, "sig present =", !!sig);
+  console.log("Paddle webhook: sig header =", sig);
+  console.log("Paddle webhook: body start =", rawBody.substring(0, 80));
 
   const valid = await verifyPaddleSignature(rawBody, sig, env.PADDLE_WEBHOOK_SECRET);
   if (!valid) {
@@ -351,9 +353,11 @@ async function verifyPaddleSignature(rawBody: string, sigHeader: string, secret:
   const tsNum = parseInt(ts, 10);
   if (!Number.isFinite(tsNum) || Math.abs(now - tsNum) > 300) return false;
 
-  const signedPayload = `ts:${ts}\n${rawBody}\n`;
+  const signedPayload = `ts:${ts}\n${rawBody}`;
   const expected = await hmacSha256Hex(secret, signedPayload);
-  return timingSafeEqualHex(expected, h1);
+  const match = timingSafeEqualHex(expected, h1);
+  if (!match) console.log(`Paddle sig mismatch: ts=${ts} h1=${h1.substring(0,8)} expected=${expected.substring(0,8)}`);
+  return match;
 }
 
 /** ---------------- Shared crypto utilities ---------------- */
