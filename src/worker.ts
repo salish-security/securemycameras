@@ -353,7 +353,7 @@ async function verifyPaddleSignature(rawBody: string, sigHeader: string, secret:
   const tsNum = parseInt(ts, 10);
   if (!Number.isFinite(tsNum) || Math.abs(now - tsNum) > 300) return false;
 
-  const signedPayload = `ts:${ts}\n${rawBody}`;
+  const signedPayload = `${ts}:${rawBody}`;
   const expected = await hmacSha256Hex(secret, signedPayload);
   const match = timingSafeEqualHex(expected, h1);
   if (!match) console.log(`Paddle sig mismatch: ts=${ts} h1=${h1.substring(0,8)} expected=${expected.substring(0,8)}`);
