@@ -13,3 +13,4 @@ bucket_name = "securemycameras-files"
 [vars]
 SUPPORT_EMAIL = "inquiry@salishsecurity.ai"
 PRODUCT_NAME = "Secure Camera Setup Guide"
+PADDLE_ENV = "sandbox"

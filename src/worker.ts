@@ -2,6 +2,8 @@ export interface Env {
   ASSETS: Fetcher;
   PRIVATE_FILES: R2Bucket;
   PADDLE_WEBHOOK_SECRET: string;
+  PADDLE_API_KEY: string;
+  PADDLE_ENV: string; // "sandbox" or "production"
   CONVERTKIT_API_SECRET: string;
   CONVERTKIT_PURCHASE_TAG: string;
   KIT_API_KEY: string;
@@ -177,24 +179,35 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
   }
 
   console.log("Paddle webhook: event_type =", event?.event_type);
+  console.log("Paddle webhook: top-level keys =", Object.keys(event || {}));
   if (event?.event_type !== "transaction.completed") return;
 
-  // Try multiple paths for email — Paddle v2 sandbox may nest differently
-  const email =
+  const transactionId = event?.data?.id;
+  const customerId = event?.data?.customer_id;
+  console.log("Paddle webhook: txnId =", transactionId, "customerId =", customerId);
+  console.log("Paddle webhook: notification obj =", JSON.stringify(event?.notification)?.substring(0, 200));
+  console.log("Paddle webhook: address obj =", JSON.stringify(event?.data?.address));
+  console.log("Paddle webhook: full data keys =", Object.keys(event?.data || {}));
+
+  // Try inline paths first — Paddle v2 sandbox doesn't embed customer object
+  let email: string | null =
     event?.data?.customer?.email ||
     event?.data?.billing_details?.email ||
     event?.data?.checkout?.customer?.email ||
     null;
-  const transactionId = event?.data?.id;
 
-  console.log("Paddle webhook: email =", email, "txnId =", transactionId);
-  console.log("Paddle webhook: customer obj =", JSON.stringify(event?.data?.customer));
-  console.log("Paddle webhook: billing_details =", JSON.stringify(event?.data?.billing_details));
+  // Fall back to Paddle API lookup using customer_id
+  if (!email && customerId && env.PADDLE_API_KEY) {
+    console.log("Paddle webhook: fetching email from Paddle API for customerId =", customerId);
+    email = await fetchPaddleCustomerEmail(customerId, env.PADDLE_API_KEY, env.PADDLE_ENV === "sandbox");
+    console.log("Paddle webhook: API email result =", email);
+  }
 
   if (!email) {
-    console.log("Paddle webhook: no customer email in payload — keys:", Object.keys(event?.data || {}));
+    console.log("Paddle webhook: could not resolve email, customerId =", customerId);
     return;
   }
+  console.log("Paddle webhook: resolved email =", email);
 
   // Determine which product(s) were purchased
   const items: any[] = event?.data?.items || [];
@@ -337,6 +350,26 @@ async function generateDownloadToken(transactionId: string, expires: number, sec
   // for audit purposes but token validity depends on expires + fileType + secret.
   // A guide token cannot be used to download the checklist and vice versa.
   return hmacSha256Hex(secret, `download:${fileType}:${expires}`);
+}
+
+/** ---------------- Paddle API helpers ---------------- */
+
+async function fetchPaddleCustomerEmail(customerId: string, apiKey: string, sandbox: boolean): Promise<string | null> {
+  const base = sandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
+  try {
+    const resp = await fetch(`${base}/customers/${customerId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) {
+      console.log("Paddle API customer fetch failed:", resp.status, await resp.text());
+      return null;
+    }
+    const body: any = await resp.json();
+    return body?.data?.email || null;
+  } catch (e) {
+    console.log("Paddle API customer fetch error:", e);
+    return null;
+  }
 }
 
 /** ---------------- Paddle signature verification ---------------- */
