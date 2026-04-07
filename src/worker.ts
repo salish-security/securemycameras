@@ -253,15 +253,10 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     console.log("Purchase record stored for hash:", emailHash.substring(0, 8));
   }
 
-  // Fire all actions in parallel: transactional delivery email + Kit nurture tagging
+  // Tag in Kit for nurture sequence (delivery is via /thank-you page, not email)
   const actions: Promise<void>[] = [];
 
   if (boughtGuide) {
-    // Transactional delivery — bypasses Kit opt-in state
-    if (env.RESEND_API_KEY && guideDownloadUrl) {
-      actions.push(sendGuideDeliveryEmail(email, guideDownloadUrl, env));
-    }
-    // Kit tag for nurture sequence (marketing — opt-in state applies)
     const tagId = env.CONVERTKIT_GUIDE_TAG || env.CONVERTKIT_PURCHASE_TAG;
     if (tagId) {
       actions.push(tagSubscriberInKit(env, tagId, email, {
@@ -271,18 +266,11 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     }
   }
 
-  if (boughtUpsell) {
-    // Transactional delivery — bypasses Kit opt-in state
-    if (env.RESEND_API_KEY && checklistDownloadUrl) {
-      actions.push(sendChecklistDeliveryEmail(email, checklistDownloadUrl, env));
-    }
-    // Kit tag for nurture sequence
-    if (env.CONVERTKIT_UPSELL_TAG) {
-      actions.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
-        checklist_download_url: checklistDownloadUrl,
-        transaction_id: transactionId || "",
-      }));
-    }
+  if (boughtUpsell && env.CONVERTKIT_UPSELL_TAG) {
+    actions.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
+      checklist_download_url: checklistDownloadUrl,
+      transaction_id: transactionId || "",
+    }));
   }
 
   await Promise.allSettled(actions);
@@ -333,40 +321,36 @@ async function handleResendDownload(request: Request, env: Env): Promise<Respons
     return json({ error: "Valid email required" }, 400);
   }
 
-  // Always return the same response — don't leak whether email is in system
-  const publicResponse = json(
-    { message: "If this email was used to purchase, you'll receive a download link shortly." },
-    200
-  );
+  // Neutral response — don't leak whether email is in system
+  const notFoundResponse = json({ found: false }, 200);
 
-  if (!env.PURCHASE_RECORDS || !env.DOWNLOAD_SECRET || !env.RESEND_API_KEY) {
-    return publicResponse;
+  if (!env.PURCHASE_RECORDS || !env.DOWNLOAD_SECRET) {
+    return notFoundResponse;
   }
 
   const emailHash = await hmacSha256Hex(env.DOWNLOAD_SECRET, `email:${email}`);
   const existing = await env.PURCHASE_RECORDS.get(emailHash);
-  if (!existing) return publicResponse;
+  if (!existing) return notFoundResponse;
 
   const record: { guide?: boolean; checklist?: boolean } = JSON.parse(existing);
   const origin = new URL(request.url).origin;
   const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
-  // Use hash as a stable stand-in for transactionId so tokens are unique per email
   const stableId = emailHash.substring(0, 16);
+
+  const links: { guide?: string; checklist?: string } = {};
 
   if (record.guide) {
     const token = await generateDownloadToken(stableId, expires, env.DOWNLOAD_SECRET, "guide");
-    const url = `${origin}/api/download?token=${token}&expires=${expires}&file=guide`;
-    await sendGuideDeliveryEmail(email, url, env);
+    links.guide = `${origin}/api/download?token=${token}&expires=${expires}&file=guide`;
   }
 
   if (record.checklist) {
     const token = await generateDownloadToken(stableId, expires, env.DOWNLOAD_SECRET, "checklist");
-    const url = `${origin}/api/download?token=${token}&expires=${expires}&file=checklist`;
-    await sendChecklistDeliveryEmail(email, url, env);
+    links.checklist = `${origin}/api/download?token=${token}&expires=${expires}&file=checklist`;
   }
 
-  console.log("Resend download: sent links for hash", emailHash.substring(0, 8), "record:", JSON.stringify(record));
-  return publicResponse;
+  console.log("Recovery link generated for hash", emailHash.substring(0, 8), JSON.stringify(record));
+  return json({ found: true, links, expires }, 200);
 }
 
 /** ---------------- PDF download (served from R2, token-gated) ---------------- */
