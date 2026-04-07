@@ -1,7 +1,12 @@
 export interface Env {
   ASSETS: Fetcher;
   PRIVATE_FILES: R2Bucket;
+  PURCHASE_RECORDS: KVNamespace;
   PADDLE_WEBHOOK_SECRET: string;
+  PADDLE_API_KEY: string;
+  PADDLE_ENV: string; // "sandbox" or "production"
+  RESEND_API_KEY: string;
+  RESEND_FROM: string; // e.g. "Secure My Cameras <orders@salishsecurity.ai>"
   CONVERTKIT_API_SECRET: string;
   CONVERTKIT_PURCHASE_TAG: string;
   KIT_API_KEY: string;
@@ -47,6 +52,12 @@ export default {
     if (url.pathname === "/api/download") {
       if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
       return handlePdfDownload(url, env);
+    }
+
+    // Resend download link — customer enters email, gets new link if they purchased
+    if (url.pathname === "/api/resend-download") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      return handleResendDownload(request, env);
     }
 
     // Serve static assets (Astro build output)
@@ -144,14 +155,25 @@ async function handleCreateDownloadToken(request: Request, env: Env): Promise<Re
 /** ---------------- Paddle webhook handler ---------------- */
 
 async function handlePaddleWebhook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  console.log("Paddle webhook: received request");
   const sig = request.headers.get("Paddle-Signature");
-  if (!sig) return new Response("Missing Paddle-Signature", { status: 400 });
+  if (!sig) {
+    console.log("Paddle webhook: missing Paddle-Signature header");
+    return new Response("Missing Paddle-Signature", { status: 400 });
+  }
 
   const rawBody = await request.text();
+  console.log("Paddle webhook: body length =", rawBody.length, "sig present =", !!sig);
+  console.log("Paddle webhook: sig header =", sig);
+  console.log("Paddle webhook: body start =", rawBody.substring(0, 80));
 
   const valid = await verifyPaddleSignature(rawBody, sig, env.PADDLE_WEBHOOK_SECRET);
-  if (!valid) return new Response("Invalid signature", { status: 400 });
+  if (!valid) {
+    console.log("Paddle webhook: signature verification FAILED");
+    return new Response("Invalid signature", { status: 400 });
+  }
 
+  console.log("Paddle webhook: signature valid, processing event");
   ctx.waitUntil(processPaddleEvent(rawBody, env, request.url));
   return new Response("OK", { status: 200 });
 }
@@ -165,21 +187,47 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     return;
   }
 
+  console.log("Paddle webhook: event_type =", event?.event_type);
+  console.log("Paddle webhook: top-level keys =", Object.keys(event || {}));
   if (event?.event_type !== "transaction.completed") return;
 
-  const email = event?.data?.customer?.email;
   const transactionId = event?.data?.id;
+  const customerId = event?.data?.customer_id;
+  console.log("Paddle webhook: txnId =", transactionId, "customerId =", customerId);
+  console.log("Paddle webhook: notification obj =", JSON.stringify(event?.notification)?.substring(0, 200));
+  console.log("Paddle webhook: address obj =", JSON.stringify(event?.data?.address));
+  console.log("Paddle webhook: full data keys =", Object.keys(event?.data || {}));
+
+  // Try inline paths first — Paddle v2 sandbox doesn't embed customer object
+  let email: string | null =
+    event?.data?.customer?.email ||
+    event?.data?.billing_details?.email ||
+    event?.data?.checkout?.customer?.email ||
+    null;
+
+  // Fall back to Paddle API lookup using customer_id
+  if (!email && customerId && env.PADDLE_API_KEY) {
+    console.log("Paddle webhook: fetching email from Paddle API for customerId =", customerId);
+    email = await fetchPaddleCustomerEmail(customerId, env.PADDLE_API_KEY, env.PADDLE_ENV === "sandbox");
+    console.log("Paddle webhook: API email result =", email);
+  }
+
   if (!email) {
-    console.log("Paddle webhook: no customer email in payload");
+    console.log("Paddle webhook: could not resolve email, customerId =", customerId);
     return;
   }
+  console.log("Paddle webhook: resolved email =", email);
 
   // Determine which product(s) were purchased
   const items: any[] = event?.data?.items || [];
-  const productIds = items.map((item: any) => item?.price?.product_id || "");
+  const productIds = items.map((item: any) => item?.price?.product_id || item?.product?.id || "");
+
+  console.log("Paddle webhook: productIds =", JSON.stringify(productIds), "env.PADDLE_GUIDE_PRODUCT_ID =", env.PADDLE_GUIDE_PRODUCT_ID);
 
   const boughtGuide = !env.PADDLE_GUIDE_PRODUCT_ID || productIds.includes(env.PADDLE_GUIDE_PRODUCT_ID) || productIds.length === 0;
   const boughtUpsell = env.PADDLE_UPSELL_PRODUCT_ID && productIds.includes(env.PADDLE_UPSELL_PRODUCT_ID);
+
+  console.log("Paddle webhook: boughtGuide =", boughtGuide, "boughtUpsell =", boughtUpsell);
 
   // Generate file-specific 7-day download links for email delivery
   const origin = new URL(requestUrl).origin;
@@ -194,25 +242,38 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
     checklistDownloadUrl = `${origin}/api/download?token=${checklistToken}&expires=${expires}&file=checklist`;
   }
 
-  // Tag purchaser in Kit based on which product they bought
-  const tagCalls: Promise<void>[] = [];
+  // Record purchase in KV (hashed email → products purchased) for /api/resend-download
+  if (env.PURCHASE_RECORDS && env.DOWNLOAD_SECRET) {
+    const emailHash = await hmacSha256Hex(env.DOWNLOAD_SECRET, `email:${email.toLowerCase()}`);
+    const existing = await env.PURCHASE_RECORDS.get(emailHash);
+    const record: Record<string, boolean> = existing ? JSON.parse(existing) : {};
+    if (boughtGuide) record.guide = true;
+    if (boughtUpsell) record.checklist = true;
+    await env.PURCHASE_RECORDS.put(emailHash, JSON.stringify(record));
+    console.log("Purchase record stored for hash:", emailHash.substring(0, 8));
+  }
+
+  // Tag in Kit for nurture sequence (delivery is via /thank-you page, not email)
+  const actions: Promise<void>[] = [];
 
   if (boughtGuide) {
     const tagId = env.CONVERTKIT_GUIDE_TAG || env.CONVERTKIT_PURCHASE_TAG;
-    tagCalls.push(tagSubscriberInKit(env, tagId, email, {
-      download_url: guideDownloadUrl,
-      transaction_id: transactionId || "",
-    }));
+    if (tagId) {
+      actions.push(tagSubscriberInKit(env, tagId, email, {
+        download_url: guideDownloadUrl,
+        transaction_id: transactionId || "",
+      }));
+    }
   }
 
-  if (boughtUpsell) {
-    tagCalls.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
+  if (boughtUpsell && env.CONVERTKIT_UPSELL_TAG) {
+    actions.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
       checklist_download_url: checklistDownloadUrl,
       transaction_id: transactionId || "",
     }));
   }
 
-  await Promise.allSettled(tagCalls);
+  await Promise.allSettled(actions);
 }
 
 async function tagSubscriberInKit(
@@ -234,13 +295,62 @@ async function tagSubscriberInKit(
         }),
       }
     );
+    const resText = await res.text().catch(() => "");
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.log("ConvertKit tag error:", res.status, errText);
+      console.log("ConvertKit tag error:", res.status, resText);
+    } else {
+      console.log("ConvertKit tag OK:", res.status, resText.substring(0, 200));
     }
   } catch (err) {
     console.log("ConvertKit request failed:", err);
   }
+}
+
+/** ---------------- Resend download link (self-serve recovery) ---------------- */
+
+async function handleResendDownload(request: Request, env: Env): Promise<Response> {
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!email || !email.includes("@")) {
+    return json({ error: "Valid email required" }, 400);
+  }
+
+  // Neutral response — don't leak whether email is in system
+  const notFoundResponse = json({ found: false }, 200);
+
+  if (!env.PURCHASE_RECORDS || !env.DOWNLOAD_SECRET) {
+    return notFoundResponse;
+  }
+
+  const emailHash = await hmacSha256Hex(env.DOWNLOAD_SECRET, `email:${email}`);
+  const existing = await env.PURCHASE_RECORDS.get(emailHash);
+  if (!existing) return notFoundResponse;
+
+  const record: { guide?: boolean; checklist?: boolean } = JSON.parse(existing);
+  const origin = new URL(request.url).origin;
+  const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
+  const stableId = emailHash.substring(0, 16);
+
+  const links: { guide?: string; checklist?: string } = {};
+
+  if (record.guide) {
+    const token = await generateDownloadToken(stableId, expires, env.DOWNLOAD_SECRET, "guide");
+    links.guide = `${origin}/api/download?token=${token}&expires=${expires}&file=guide`;
+  }
+
+  if (record.checklist) {
+    const token = await generateDownloadToken(stableId, expires, env.DOWNLOAD_SECRET, "checklist");
+    links.checklist = `${origin}/api/download?token=${token}&expires=${expires}&file=checklist`;
+  }
+
+  console.log("Recovery link generated for hash", emailHash.substring(0, 8), JSON.stringify(record));
+  return json({ found: true, links, expires }, 200);
 }
 
 /** ---------------- PDF download (served from R2, token-gated) ---------------- */
@@ -311,6 +421,86 @@ async function generateDownloadToken(transactionId: string, expires: number, sec
   return hmacSha256Hex(secret, `download:${fileType}:${expires}`);
 }
 
+/** ---------------- Resend transactional email ---------------- */
+
+async function sendGuideDeliveryEmail(to: string, downloadUrl: string, env: Env): Promise<void> {
+  const from = env.RESEND_FROM || "Secure My Cameras <hello@securemycameras.com>";
+  const html = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1C1917">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Your Secure Camera Setup Guide is ready</h2>
+      <p style="margin-bottom:24px;color:#57534E">You're one step closer to a camera system that actually protects you. Your guide is ready to download.</p>
+      <a href="${downloadUrl}" style="display:inline-block;background:#DC2626;color:#fff;font-weight:700;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px">Download Your Guide →</a>
+      <p style="margin-top:24px;font-size:13px;color:#78716C">This link expires in 7 days. If you have any issues, reply to this email.</p>
+    </div>
+  `;
+  await sendResendEmail({ to, from, subject: "Your Secure Camera Setup Guide is here", html, env });
+}
+
+async function sendChecklistDeliveryEmail(to: string, downloadUrl: string, env: Env): Promise<void> {
+  const from = env.RESEND_FROM || "Secure My Cameras <hello@securemycameras.com>";
+  const html = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1C1917">
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Your Home Network Security Checklist is ready</h2>
+      <p style="margin-bottom:24px;color:#57534E">Your checklist is ready to download. Use it to lock down your network and keep your cameras protected.</p>
+      <a href="${downloadUrl}" style="display:inline-block;background:#DC2626;color:#fff;font-weight:700;padding:14px 28px;border-radius:6px;text-decoration:none;font-size:16px">Download Your Checklist →</a>
+      <p style="margin-top:24px;font-size:13px;color:#78716C">This link expires in 7 days. If you have any issues, reply to this email.</p>
+    </div>
+  `;
+  await sendResendEmail({ to, from, subject: "Your Home Network Security Checklist is here", html, env });
+}
+
+async function sendResendEmail(opts: {
+  to: string;
+  from: string;
+  subject: string;
+  html: string;
+  env: Env;
+}): Promise<void> {
+  try {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${opts.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: opts.from,
+        to: [opts.to],
+        subject: opts.subject,
+        html: opts.html,
+      }),
+    });
+    const body = await resp.text();
+    if (!resp.ok) {
+      console.log("Resend error:", resp.status, body);
+    } else {
+      console.log("Resend OK:", resp.status, body.substring(0, 100));
+    }
+  } catch (err) {
+    console.log("Resend request failed:", err);
+  }
+}
+
+/** ---------------- Paddle API helpers ---------------- */
+
+async function fetchPaddleCustomerEmail(customerId: string, apiKey: string, sandbox: boolean): Promise<string | null> {
+  const base = sandbox ? "https://sandbox-api.paddle.com" : "https://api.paddle.com";
+  try {
+    const resp = await fetch(`${base}/customers/${customerId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) {
+      console.log("Paddle API customer fetch failed:", resp.status, await resp.text());
+      return null;
+    }
+    const body: any = await resp.json();
+    return body?.data?.email || null;
+  } catch (e) {
+    console.log("Paddle API customer fetch error:", e);
+    return null;
+  }
+}
+
 /** ---------------- Paddle signature verification ---------------- */
 
 async function verifyPaddleSignature(rawBody: string, sigHeader: string, secret: string): Promise<boolean> {
@@ -325,9 +515,11 @@ async function verifyPaddleSignature(rawBody: string, sigHeader: string, secret:
   const tsNum = parseInt(ts, 10);
   if (!Number.isFinite(tsNum) || Math.abs(now - tsNum) > 300) return false;
 
-  const signedPayload = `ts:${ts}\n${rawBody}\n`;
+  const signedPayload = `${ts}:${rawBody}`;
   const expected = await hmacSha256Hex(secret, signedPayload);
-  return timingSafeEqualHex(expected, h1);
+  const match = timingSafeEqualHex(expected, h1);
+  if (!match) console.log(`Paddle sig mismatch: ts=${ts} h1=${h1.substring(0,8)} expected=${expected.substring(0,8)}`);
+  return match;
 }
 
 /** ---------------- Shared crypto utilities ---------------- */

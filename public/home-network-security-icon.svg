@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Shield body -->
+  <path d="M256 42L60 132v120c0 118 84 228 196 260 112-32 196-142 196-260V132L256 42z" fill="#0f172a" stroke="#1e293b" stroke-width="8"/>
+  
+  <!-- Inner shield highlight -->
+  <path d="M256 72L88 150v106c0 104 74 200 168 228 94-28 168-124 168-228V150L256 72z" fill="#1a2332"/>
+  
+  <!-- Central node -->
+  <circle cx="256" cy="240" r="32" fill="#dc2626"/>
+  
+  <!-- Lock icon in center -->
+  <rect x="244" y="234" width="24" height="20" rx="3" fill="#0f172a"/>
+  <path d="M249 234v-8a7 7 0 0114 0v8" fill="none" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="256" cy="245" r="2.5" fill="#dc2626"/>
+  
+  <!-- Network lines -->
+  <line x1="256" y1="208" x2="256" y2="148" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="288" y1="240" x2="348" y2="240" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="224" y1="240" x2="164" y2="240" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="278" y1="218" x2="320" y2="176" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="234" y1="218" x2="192" y2="176" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="278" y1="262" x2="320" y2="304" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="234" y1="262" x2="192" y2="304" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  <line x1="256" y1="272" x2="256" y2="332" stroke="#dc2626" stroke-width="3" opacity="0.6"/>
+  
+  <!-- Outer nodes -->
+  <circle cx="256" cy="140" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="352" cy="240" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="160" cy="240" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="324" cy="172" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="188" cy="172" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="324" cy="308" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="188" cy="308" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  <circle cx="256" cy="336" r="14" fill="#1e293b" stroke="#dc2626" stroke-width="2.5"/>
+  
+  <!-- Small dots in outer nodes (device indicators) -->
+  <circle cx="256" cy="140" r="4" fill="#dc2626"/>
+  <circle cx="352" cy="240" r="4" fill="#dc2626"/>
+  <circle cx="160" cy="240" r="4" fill="#dc2626"/>
+  <circle cx="324" cy="172" r="4" fill="#dc2626"/>
+  <circle cx="188" cy="172" r="4" fill="#dc2626"/>
+  <circle cx="324" cy="308" r="4" fill="#dc2626"/>
+  <circle cx="188" cy="308" r="4" fill="#dc2626"/>
+  <circle cx="256" cy="336" r="4" fill="#dc2626"/>
+</svg>

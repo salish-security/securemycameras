@@ -671,6 +671,7 @@ export default function CameraSecurityQuiz() {
                 >
                   {(() => {
                     const failCount = answers.filter((a) => a.points === 0).length;
+                    if (failCount === 0) return "Your Setup Passes — For Now";
                     return (risk.level === "CRITICAL" || risk.level === "HIGH")
                       ? `You Failed ${failCount} of ${QUESTIONS.length} Security Checks`
                       : `${failCount} Security Gaps Found in Your Setup`;
@@ -1035,11 +1036,22 @@ export default function CameraSecurityQuiz() {
                       fontFamily: "'Outfit', sans-serif",
                     }}
                   >
-                    You have{" "}
-                    <span style={{ color: risk.color, fontWeight: 700 }}>
-                      {failCount} open vulnerabilities
-                    </span>{" "}
-                    in your camera setup.
+                    {failCount === 0 ? (
+                      <>
+                        Your cameras passed every check.{" "}
+                        <span style={{ color: risk.color, fontWeight: 700 }}>
+                          Most people aren't this careful.
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        You have{" "}
+                        <span style={{ color: risk.color, fontWeight: 700 }}>
+                          {failCount} open vulnerabilities
+                        </span>{" "}
+                        in your camera setup.
+                      </>
+                    )}
                   </p>
                   <p
                     style={{
@@ -1050,7 +1062,10 @@ export default function CameraSecurityQuiz() {
                       fontFamily: "'Outfit', sans-serif",
                     }}
                   >
-                    These vulnerabilities are exploitable right now. The guide closes all of them &mdash; step by step, in one afternoon.
+                    {failCount === 0
+                      ? "The guide documents everything you're doing right — plus the quarterly checklist to keep it that way."
+                      : "These vulnerabilities are exploitable right now. The guide closes all of them \u2014 step by step, in one afternoon."
+                    }
                   </p>
                   <p
                     style={{
@@ -1067,7 +1082,8 @@ export default function CameraSecurityQuiz() {
                     onClick={() => {
                       if (typeof window !== "undefined" && (window as any).Paddle) {
                         (window as any).Paddle.Checkout.open({
-                          items: [{ priceId: "LIVE_GUIDE_PRICE_ID", quantity: 1 }],
+                          items: [{ priceId: "pri_01km3xxxxj43c9q84yeyn3k642", quantity: 1 }],
+                          customer: email ? { email } : undefined,
                         });
                       }
                     }}
