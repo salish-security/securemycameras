@@ -36,9 +36,10 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
 <!-- Paddle Checkout (for direct purchase from quiz results) -->
 <script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script is:inline>
-    // Initialize Paddle
+    // Initialize Paddle (SANDBOX MODE — for testing)
+    Paddle.Environment.set('sandbox');
     Paddle.Initialize({
-        token: 'LIVE_PADDLE_CLIENT_TOKEN',
+        token: 'test_4cc33c787bf309e13fcbb4dabec',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleCheckoutComplete(event.data);
@@ -48,6 +49,7 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
 
     async function handleCheckoutComplete(data) {
         var transactionId = data && data.transaction_id;
+        var customerEmail = (data && data.customer && data.customer.email) || '';
 
         // Fire Meta Pixel Purchase event
         if (typeof fbq === 'function') {
@@ -55,7 +57,7 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
         }
 
         if (!transactionId) {
-            window.location.href = '/upsell';
+            window.location.href = '/upsell' + (customerEmail ? '?email=' + encodeURIComponent(customerEmail) : '');
             return;
         }
         try {
@@ -66,9 +68,11 @@ import CameraSecurityQuiz from "../components/CameraSecurityQuiz";
             });
             var result = await res.json();
             if (result.ok && result.token && result.expires) {
-                window.location.href = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+                var url = '/upsell?token=' + encodeURIComponent(result.token) + '&expires=' + result.expires;
+                if (customerEmail) url += '&email=' + encodeURIComponent(customerEmail);
+                window.location.href = url;
             } else {
-                window.location.href = '/upsell';
+                window.location.href = '/upsell' + (customerEmail ? '?email=' + encodeURIComponent(customerEmail) : '');
             }
         } catch (err) {
             console.error('Token creation failed:', err);

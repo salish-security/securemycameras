@@ -267,9 +267,10 @@
 <!-- Paddle Checkout (for upsell product) -->
 <script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script is:inline>
-    // Initialize Paddle
+    // Initialize Paddle (SANDBOX MODE — for testing)
+    Paddle.Environment.set('sandbox');
     Paddle.Initialize({
-        token: 'LIVE_PADDLE_CLIENT_TOKEN',
+        token: 'test_4cc33c787bf309e13fcbb4dabec',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleUpsellComplete(event.data);
@@ -281,6 +282,7 @@
     var params = new URLSearchParams(window.location.search);
     var guideToken = params.get('token') || '';
     var guideExpires = params.get('expires') || '';
+    var customerEmail = params.get('email') || '';
 
     // Hide confirmation banner if no valid token (direct navigation, not post-checkout)
     if (!guideToken || !guideExpires) {
@@ -298,10 +300,11 @@
     // Upsell buy button
     document.querySelector('.paddle-upsell-buy').addEventListener('click', function(e) {
         e.preventDefault();
-        Paddle.Checkout.open({
-            // PLACEHOLDER — replace with actual upsell price ID from Paddle
-            items: [{ priceId: 'LIVE_UPSELL_PRICE_ID', quantity: 1 }],
-        });
+        var checkoutConfig = {
+            items: [{ priceId: 'pri_01knb8grb8dphs3z0sqdq01q62', quantity: 1 }],
+        };
+        if (customerEmail) checkoutConfig.customer = { email: customerEmail };
+        Paddle.Checkout.open(checkoutConfig);
     });
 
     // After upsell checkout completes — generate checklist-specific download token
