@@ -17,5 +17,5 @@ id = "93ba5e33480f425489910bf0dddb2052"
 [vars]
 SUPPORT_EMAIL = "inquiry@salishsecurity.ai"
 PRODUCT_NAME = "Secure Camera Setup Guide"
-PADDLE_ENV = "sandbox"
+PADDLE_ENV = "production"
 RESEND_FROM = "Secure My Cameras <orders@notify.salishsecurity.ai>"
