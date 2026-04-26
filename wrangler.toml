@@ -13,9 +13,25 @@ bucket_name = "securemycameras-files"
 [[kv_namespaces]]
 binding = "PURCHASE_RECORDS"
 id = "93ba5e33480f425489910bf0dddb2052"
+preview_id = "09ef2399972545cbb2a2b7ccce9e34e3"
 
 [vars]
 SUPPORT_EMAIL = "inquiry@salishsecurity.ai"
 PRODUCT_NAME = "Secure Camera Setup Guide"
 PADDLE_ENV = "production"
 RESEND_FROM = "Secure My Cameras <orders@notify.salishsecurity.ai>"
+
+# Secrets (set via `wrangler secret put`):
+#   PADDLE_WEBHOOK_SECRET   — Paddle notification endpoint secret
+#   PADDLE_API_KEY          — Paddle live API key (for customer email lookup)
+#   PADDLE_GUIDE_PRODUCT_ID — Paddle product ID for the $29 guide
+#   PADDLE_UPSELL_PRODUCT_ID — Paddle product ID for the $47 checklist
+#   DOWNLOAD_SECRET         — 32-byte hex string for HMAC token signing
+#   CONVERTKIT_API_SECRET   — Kit v3 API secret
+#   CONVERTKIT_PURCHASE_TAG — Kit tag ID (legacy guide fallback)
+#   CONVERTKIT_GUIDE_TAG    — Kit tag ID for guide buyers
+#   CONVERTKIT_UPSELL_TAG   — Kit tag ID for checklist buyers
+#   CONVERTKIT_QUIZ_TAG     — Kit tag ID for quiz completions
+#   KIT_API_KEY             — Kit v3 public API key
+#   KIT_FORM_ID             — Kit form ID for quiz email gate
+#   RESEND_API_KEY          — Resend API key (paused until domain verified)

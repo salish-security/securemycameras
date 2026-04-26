@@ -24,13 +24,25 @@ export interface Env {
 const DOWNLOAD_TTL_IMMEDIATE = 48 * 60 * 60; // 48 hours (checkout redirect)
 const DOWNLOAD_TTL_EMAIL = 7 * 24 * 60 * 60; // 7 days (email delivery)
 
+// Hoisted to module scope so both handlePdfDownload and any future handlers share it
+const FILES: Record<string, { r2Key: string; filename: string }> = {
+  guide: {
+    r2Key: "secure-your-cameras-guide.pdf",
+    filename: "Secure-Your-Cameras-Guide.pdf",
+  },
+  checklist: {
+    r2Key: "home-network-security-checklist.pdf",
+    filename: "Home-Network-Security-Checklist.pdf",
+  },
+};
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const url = new URL(request.url);
 
     // Kit subscribe proxy — quiz email gate
     if (url.pathname === "/api/subscribe" && request.method === "POST") {
-      return handleSubscribe(request, env);
+      return handleSubscribe(request, env, ctx);
     }
     if (url.pathname === "/api/subscribe") {
       return new Response("Method not allowed", { status: 405 });
@@ -67,7 +79,7 @@ export default {
 
 /** ---------------- Kit subscribe proxy ---------------- */
 
-async function handleSubscribe(request: Request, env: Env): Promise<Response> {
+async function handleSubscribe(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   let body: any;
   try {
     body = await request.json();
@@ -75,10 +87,12 @@ async function handleSubscribe(request: Request, env: Env): Promise<Response> {
     return json({ ok: false, error: "Invalid JSON" }, 400);
   }
 
-  const { email, firstName, score, tier } = body;
-  if (!email) {
+  const { email: rawEmail, firstName, score, tier } = body;
+  if (!rawEmail) {
     return json({ ok: false, error: "Missing email" }, 400);
   }
+  // Normalize email before all downstream calls
+  const email = String(rawEmail).trim().toLowerCase();
 
   const kitRes = await fetch(
     `https://api.convertkit.com/v3/forms/${env.KIT_FORM_ID}/subscribe`,
@@ -104,10 +118,10 @@ async function handleSubscribe(request: Request, env: Env): Promise<Response> {
     return json({ ok: false }, 502);
   }
 
-  // Apply quiz-completed tag for automation triggers
+  // Apply quiz-completed tag asynchronously — does not block the response
   if (env.CONVERTKIT_QUIZ_TAG) {
-    try {
-      await fetch(
+    ctx.waitUntil(
+      fetch(
         `https://api.convertkit.com/v3/tags/${env.CONVERTKIT_QUIZ_TAG}/subscribe`,
         {
           method: "POST",
@@ -121,10 +135,10 @@ async function handleSubscribe(request: Request, env: Env): Promise<Response> {
             },
           }),
         }
-      );
-    } catch (err) {
-      console.log("Quiz tag error:", err);
-    }
+      )
+        .then((r) => { if (!r.ok) console.log("Quiz tag error:", r.status); })
+        .catch((err) => console.log("Quiz tag error:", err))
+    );
   }
 
   return json({ ok: true }, 200);
@@ -164,7 +178,7 @@ async function handlePaddleWebhook(request: Request, env: Env, ctx: ExecutionCon
 
   const rawBody = await request.text();
   console.log("Paddle webhook: body length =", rawBody.length, "sig present =", !!sig);
-  console.log("Paddle webhook: sig header =", sig);
+  // NOTE: do not log the full sig header — it contains a replayable HMAC value
   console.log("Paddle webhook: body start =", rawBody.substring(0, 80));
 
   const valid = await verifyPaddleSignature(rawBody, sig, env.PADDLE_WEBHOOK_SECRET);
@@ -176,6 +190,11 @@ async function handlePaddleWebhook(request: Request, env: Env, ctx: ExecutionCon
   console.log("Paddle webhook: signature valid, processing event");
   ctx.waitUntil(processPaddleEvent(rawBody, env, request.url));
   return new Response("OK", { status: 200 });
+}
+
+interface PaddleItem {
+  price?: { product_id?: string };
+  product?: { id?: string };
 }
 
 async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string): Promise<void> {
@@ -209,56 +228,57 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
   if (!email && customerId && env.PADDLE_API_KEY) {
     console.log("Paddle webhook: fetching email from Paddle API for customerId =", customerId);
     email = await fetchPaddleCustomerEmail(customerId, env.PADDLE_API_KEY, env.PADDLE_ENV === "sandbox");
-    console.log("Paddle webhook: API email result =", email);
   }
 
   if (!email) {
     console.log("Paddle webhook: could not resolve email, customerId =", customerId);
     return;
   }
-  console.log("Paddle webhook: resolved email =", email);
+  // Log only domain portion — don't expose PII in plaintext logs
+  console.log("Paddle webhook: resolved email domain =", email.split("@")[1] ?? "(none)");
 
   // Determine which product(s) were purchased
-  const items: any[] = event?.data?.items || [];
-  const productIds = items.map((item: any) => item?.price?.product_id || item?.product?.id || "");
+  const items: PaddleItem[] = event?.data?.items || [];
+  const productIds = items.map((item) => item?.price?.product_id || item?.product?.id || "");
 
   console.log("Paddle webhook: productIds =", JSON.stringify(productIds), "env.PADDLE_GUIDE_PRODUCT_ID =", env.PADDLE_GUIDE_PRODUCT_ID);
 
   const boughtGuide = !env.PADDLE_GUIDE_PRODUCT_ID || productIds.includes(env.PADDLE_GUIDE_PRODUCT_ID) || productIds.length === 0;
-  const boughtUpsell = env.PADDLE_UPSELL_PRODUCT_ID && productIds.includes(env.PADDLE_UPSELL_PRODUCT_ID);
+  const boughtUpsell = Boolean(env.PADDLE_UPSELL_PRODUCT_ID && productIds.includes(env.PADDLE_UPSELL_PRODUCT_ID));
 
   console.log("Paddle webhook: boughtGuide =", boughtGuide, "boughtUpsell =", boughtUpsell);
-
-  // Generate file-specific 7-day download links for email delivery
-  const origin = new URL(requestUrl).origin;
-  let guideDownloadUrl = "";
-  let checklistDownloadUrl = "";
-  if (transactionId && env.DOWNLOAD_SECRET) {
-    const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
-    const guideToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "guide");
-    guideDownloadUrl = `${origin}/api/download?token=${guideToken}&expires=${expires}&file=guide`;
-
-    const checklistToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "checklist");
-    checklistDownloadUrl = `${origin}/api/download?token=${checklistToken}&expires=${expires}&file=checklist`;
-  }
 
   // Record purchase in KV (hashed email → products purchased) for /api/resend-download
   if (env.PURCHASE_RECORDS && env.DOWNLOAD_SECRET) {
     const emailHash = await hmacSha256Hex(env.DOWNLOAD_SECRET, `email:${email.toLowerCase()}`);
     const existing = await env.PURCHASE_RECORDS.get(emailHash);
-    const record: Record<string, boolean> = existing ? JSON.parse(existing) : {};
+    let record: Record<string, boolean> = {};
+    if (existing) {
+      try {
+        record = JSON.parse(existing);
+      } catch {
+        console.log("Paddle webhook: failed to parse existing purchase record, starting fresh");
+      }
+    }
     if (boughtGuide) record.guide = true;
     if (boughtUpsell) record.checklist = true;
     await env.PURCHASE_RECORDS.put(emailHash, JSON.stringify(record));
     console.log("Purchase record stored for hash:", emailHash.substring(0, 8));
   }
 
-  // Tag in Kit for nurture sequence (delivery is via /thank-you page, not email)
+  // Tag in Kit for nurture sequence — generate download URLs only for purchased products
+  const origin = new URL(requestUrl).origin;
   const actions: Promise<void>[] = [];
+  const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
 
   if (boughtGuide) {
     const tagId = env.CONVERTKIT_GUIDE_TAG || env.CONVERTKIT_PURCHASE_TAG;
     if (tagId) {
+      let guideDownloadUrl = "";
+      if (transactionId && env.DOWNLOAD_SECRET) {
+        const guideToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "guide");
+        guideDownloadUrl = `${origin}/api/download?token=${guideToken}&expires=${expires}&file=guide`;
+      }
       actions.push(tagSubscriberInKit(env, tagId, email, {
         download_url: guideDownloadUrl,
         transaction_id: transactionId || "",
@@ -267,6 +287,11 @@ async function processPaddleEvent(rawBody: string, env: Env, requestUrl: string)
   }
 
   if (boughtUpsell && env.CONVERTKIT_UPSELL_TAG) {
+    let checklistDownloadUrl = "";
+    if (transactionId && env.DOWNLOAD_SECRET) {
+      const checklistToken = await generateDownloadToken(transactionId, expires, env.DOWNLOAD_SECRET, "checklist");
+      checklistDownloadUrl = `${origin}/api/download?token=${checklistToken}&expires=${expires}&file=checklist`;
+    }
     actions.push(tagSubscriberInKit(env, env.CONVERTKIT_UPSELL_TAG, email, {
       checklist_download_url: checklistDownloadUrl,
       transaction_id: transactionId || "",
@@ -309,6 +334,17 @@ async function tagSubscriberInKit(
 /** ---------------- Resend download link (self-serve recovery) ---------------- */
 
 async function handleResendDownload(request: Request, env: Env): Promise<Response> {
+  // Rate limit: 3 requests per minute per IP — prevents email enumeration
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const rateLimitKey = `ratelimit:resend:${ip}`;
+  if (env.PURCHASE_RECORDS) {
+    const count = parseInt((await env.PURCHASE_RECORDS.get(rateLimitKey)) ?? "0", 10);
+    if (count >= 3) {
+      return json({ error: "Too many requests. Please try again later." }, 429);
+    }
+    await env.PURCHASE_RECORDS.put(rateLimitKey, String(count + 1), { expirationTtl: 60 });
+  }
+
   let body: any;
   try {
     body = await request.json();
@@ -332,7 +368,13 @@ async function handleResendDownload(request: Request, env: Env): Promise<Respons
   const existing = await env.PURCHASE_RECORDS.get(emailHash);
   if (!existing) return notFoundResponse;
 
-  const record: { guide?: boolean; checklist?: boolean } = JSON.parse(existing);
+  let record: { guide?: boolean; checklist?: boolean };
+  try {
+    record = JSON.parse(existing);
+  } catch {
+    return notFoundResponse;
+  }
+
   const origin = new URL(request.url).origin;
   const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TTL_EMAIL;
   const stableId = emailHash.substring(0, 16);
@@ -382,16 +424,6 @@ async function handlePdfDownload(url: URL, env: Env): Promise<Response> {
 
   // Read file param before verification (file is part of the signed payload)
   const fileParam = url.searchParams.get("file") || "guide";
-  const FILES: Record<string, { r2Key: string; filename: string }> = {
-    guide: {
-      r2Key: "secure-your-cameras-guide.pdf",
-      filename: "Secure-Your-Cameras-Guide.pdf",
-    },
-    checklist: {
-      r2Key: "home-network-security-checklist.pdf",
-      filename: "Home-Network-Security-Checklist.pdf",
-    },
-  };
   const fileInfo = FILES[fileParam] || FILES.guide;
 
   // Verify HMAC — token signs expires + fileType
@@ -422,6 +454,10 @@ async function generateDownloadToken(transactionId: string, expires: number, sec
 }
 
 /** ---------------- Resend transactional email ---------------- */
+// TODO(resend): Wire up sendGuideDeliveryEmail / sendChecklistDeliveryEmail in
+// processPaddleEvent once securemycameras.com domain is verified in Resend.
+// Until then, delivery is via the /thank-you page token redirect and
+// the /api/resend-download self-serve recovery endpoint.
 
 async function sendGuideDeliveryEmail(to: string, downloadUrl: string, env: Env): Promise<void> {
   const from = env.RESEND_FROM || "Secure My Cameras <hello@securemycameras.com>";
@@ -488,13 +524,14 @@ async function fetchPaddleCustomerEmail(customerId: string, apiKey: string, sand
   try {
     const resp = await fetch(`${base}/customers/${customerId}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8000),
     });
     if (!resp.ok) {
       console.log("Paddle API customer fetch failed:", resp.status, await resp.text());
       return null;
     }
-    const body: any = await resp.json();
-    return body?.data?.email || null;
+    const body: { data?: { email?: string } } = await resp.json();
+    return body?.data?.email ?? null;
   } catch (e) {
     console.log("Paddle API customer fetch error:", e);
     return null;
