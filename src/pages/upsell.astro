@@ -267,10 +267,8 @@
 <!-- Paddle Checkout (for upsell product) -->
 <script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script is:inline>
-    // Initialize Paddle (SANDBOX MODE — for testing)
-    Paddle.Environment.set('sandbox');
     Paddle.Initialize({
-        token: 'test_4cc33c787bf309e13fcbb4dabec',
+        token: 'live_33b5729e0ee1c503ab34ef6fa8e',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleUpsellComplete(event.data);
@@ -301,7 +299,7 @@
     document.querySelector('.paddle-upsell-buy').addEventListener('click', function(e) {
         e.preventDefault();
         var checkoutConfig = {
-            items: [{ priceId: 'pri_01knb8grb8dphs3z0sqdq01q62', quantity: 1 }],
+            items: [{ priceId: 'pri_01knb95pg730xj313rpv20w5a1', quantity: 1 }],
         };
         if (customerEmail) checkoutConfig.customer = { email: customerEmail };
         Paddle.Checkout.open(checkoutConfig);

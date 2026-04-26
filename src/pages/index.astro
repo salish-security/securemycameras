@@ -642,10 +642,8 @@
 <!-- Paddle Checkout -->
 <script is:inline src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script is:inline>
-    // Initialize Paddle (SANDBOX MODE — for testing)
-    Paddle.Environment.set('sandbox');
     Paddle.Initialize({
-        token: 'test_4cc33c787bf309e13fcbb4dabec',
+        token: 'live_33b5729e0ee1c503ab34ef6fa8e',
         eventCallback: function(event) {
             if (event.name === 'checkout.completed') {
                 handleCheckoutComplete(event.data);
@@ -657,7 +655,7 @@
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             Paddle.Checkout.open({
-                items: [{ priceId: 'pri_01km3xxxxj43c9q84yeyn3k642', quantity: 1 }],
+                items: [{ priceId: 'pri_01knb91f40ztzp49371ddk0982', quantity: 1 }],
             });
         });
     });
